@@ -29,16 +29,16 @@ jobs:
           cache: npm
           cache-dependency-path: apps/demo-ui/package-lock.json
 
-      - name: Compute UI password hash
+      - name: Compute UI password hash (optional)
         env:
           UI_PASSWORD: ${{ secrets.UI_PASSWORD }}
         run: |
-          if [ -z "$UI_PASSWORD" ]; then
-            echo "::error::Set repository secret UI_PASSWORD (demo login password)"
-            exit 1
+          if [ -n "$UI_PASSWORD" ]; then
+            HASH=$(printf '%s' "$UI_PASSWORD" | sha256sum | awk '{print $1}')
+            echo "VITE_UI_PASSWORD_HASH=$HASH" >> "$GITHUB_ENV"
+          else
+            echo "No UI_PASSWORD secret — UI login gate disabled until secret is set."
           fi
-          HASH=$(printf '%s' "$UI_PASSWORD" | sha256sum | awk '{print $1}')
-          echo "VITE_UI_PASSWORD_HASH=$HASH" >> "$GITHUB_ENV"
 
       - name: Build demo UI
         working-directory: apps/demo-ui
@@ -47,9 +47,8 @@ jobs:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
         run: |
-          if [ -z "$VITE_API_URL" ] || [ -z "$VITE_API_KEY" ]; then
-            echo "::error::Set secrets VITE_API_URL (ngrok https URL) and VITE_API_KEY"
-            exit 1
+          if [ -z "${VITE_API_URL:-}" ] || [ -z "${VITE_API_KEY:-}" ]; then
+            echo "VITE_API_URL / VITE_API_KEY not set — deploying UI shell (configure secrets for live API)."
           fi
           npm ci
           npm run build

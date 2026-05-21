@@ -64,11 +64,13 @@ Install ngrok: `brew install ngrok/ngrok/ngrok` and `ngrok config add-authtoken 
 2. **Settings → Pages → Build and deployment → Source:** **GitHub Actions**.
 3. Push to `main` / `master` (or run workflow **Deploy demo UI to GitHub Pages** manually).
 
-Your site URL:
+Your site URL (project site — include the repo name):
 
 `https://<github-username>.github.io/<repo-name>/`
 
-Example: `https://adnanshahid.github.io/underwrite-agent/`
+Example: **https://alsy99.github.io/underwrite-agent/**
+
+`https://<username>.github.io/` alone will 404 unless you use a separate user/org Pages repo.
 
 ## 4. Password protection (two layers)
 

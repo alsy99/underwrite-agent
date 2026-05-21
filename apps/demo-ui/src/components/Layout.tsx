@@ -7,6 +7,7 @@ import {
   Shield,
 } from "lucide-react";
 import { clearAuth, isAuthRequired } from "../lib/auth";
+import { SetupBanner } from "./SetupBanner";
 
 const nav = [
   { to: "/", label: "Cases", icon: LayoutDashboard },
@@ -72,6 +73,7 @@ export function Layout() {
         </div>
       </aside>
       <main className="flex-1 overflow-auto">
+        <SetupBanner />
         <Outlet />
       </main>
     </div>
