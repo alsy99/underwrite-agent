@@ -1,0 +1,10 @@
+FIRST NATIONAL BANK — Business Checking Statement
+Account: Acme Consulting LLC
+Period: February 2026
+
+Beginning Balance: $12,400
+Total Deposits: $28,000
+Total Withdrawals: $31,200
+Ending Balance: $9,200
+
+Notable deposits include irregular transfers inconsistent with stated $450,000 annual revenue.

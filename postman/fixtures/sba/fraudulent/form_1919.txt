@@ -1,0 +1,14 @@
+SBA Form 1919 — Borrower Information Form
+
+Business Legal Name: Acme Consulting LLC
+EIN: 12-3456789
+Business Address: 1200 Market Street, Suite 400, Wilmington, DE 19801
+Annual Gross Revenues: $450,000
+Number of Employees: 8
+Primary Industry: Management Consulting
+
+Applicant Name: John Smith
+Stated Employer (for personal guarantee income): Acme Consulting LLC
+Annual Salary from Employment: $95,000
+
+Affiliated Entities: None declared

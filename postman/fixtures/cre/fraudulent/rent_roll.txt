@@ -1,0 +1,7 @@
+RENT ROLL — Oak Plaza
+Property: 200 Oak Street, Dallas, TX
+
+Total Units: 24
+Occupied: 22
+Monthly Gross Rent: $48,000
+Annual NOI: $412,000

@@ -1,0 +1,741 @@
+{
+  "info": {
+    "_postman_id": "underwrite-agent-mvp",
+    "name": "Underwrite Agent API",
+    "description": "AI Underwriting Assistant — Agentic Fraud Investigation MVP.\n\n## Ready to test (checklist)\n1. Postgres + Redis running (`brew services start postgresql@14 redis`)\n2. `.env` copied from `.env.example` (API_KEY matches {{apiKey}})\n3. **Terminal 1:** `uvicorn apps.api.main:app --reload --port 8000`\n4. **Terminal 2:** `python -m apps.worker.main` (required or cases stay `queued`)\n5. Ollama running with `llama3.2:3b` if using LLM (optional)\n6. Run **0 - Start Here → Health Check** first\n\nFixture files are bundled under `postman/fixtures/` (paths relative to this collection file).\n\nAuth: Bearer {{apiKey}} on POST routes. GET /v1/cases/* has no auth in MVP.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{apiKey}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "apiKey",
+      "value": "dev-api-key-change-me"
+    },
+    {
+      "key": "tenantId",
+      "value": "default"
+    },
+    {
+      "key": "caseId",
+      "value": ""
+    },
+    {
+      "key": "policyId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0 - Start Here",
+      "description": "Run Health Check first. If it fails, the API is not up.",
+      "item": [
+        {
+          "name": "Health Check (run first)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('API is up', () => pm.response.to.have.status(200));",
+                  "pm.test('Service name', () => pm.expect(pm.response.json().service).to.eql('underwrite-agent'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Liveness probe. No authentication required."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Policies",
+      "item": [
+        {
+          "name": "Upload Policy — SBA (JSON) ★ use this",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('policyId', j.id);",
+                  "pm.environment.set('policyId', j.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"SBA Policy Seed\",\n  \"policy_version\": \"2026.05.1\",\n  \"effective_date\": \"2026-05-21\",\n  \"filename\": \"sba_policy_seed.md\",\n  \"content\": \"# SBA 7(a) Underwriting Policy — Seed Document\\n\\n## INCOME-004 — Allowable Income Sources\\nCryptocurrency mining income, NFT sales proceeds, and unverified digital asset income are **not** allowable income sources for SBA 7(a) qualification unless seasoned for 24 months with full documentation.\\n\\n## SBA-REV-002 — Revenue Reconciliation\\nStated annual gross revenues on SBA Form 1919 must reconcile within **10%** of tax returns, IRS transcripts (4506-C), and profit & loss statements. Material discrepancies require manual review.\\n\\n## SBA-ENTITY-001 — Business Existence\\nThe applicant business must be verifiable through state registry records. Shell companies operating from virtual offices require enhanced due diligence.\\n\\n## SBA-EMP-003 — Employment Verification\\nEmployer named on the loan application must match third-party employment verification letters. Mismatches are treated as potential fraud indicators.\\n\\n## GENERAL-001 — Default Review Threshold\\nAny high-severity fraud indicator automatically routes to manual underwriting review. Auto-decline is disabled in advisory mode.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/tenants/{{tenantId}}/policies/json",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "tenants", "{{tenantId}}", "policies", "json"]
+            },
+            "description": "Recommended for Postman — no file attachment needed. Returns 201."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Policy (SBA seed — multipart file)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('policyId', j.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "SBA Policy Seed",
+                  "type": "text"
+                },
+                {
+                  "key": "policy_version",
+                  "value": "2026.05.1",
+                  "type": "text"
+                },
+                {
+                  "key": "effective_date",
+                  "value": "2026-05-21",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "description": "Select: data/fixtures/policies/sba_policy_seed.md",
+                  "type": "file",
+                  "src": "fixtures/policies/sba_policy_seed.md"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/tenants/{{tenantId}}/policies",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "tenants", "{{tenantId}}", "policies"]
+            },
+            "description": "Requires selecting file manually: click file row → Select Files → pick `postman/fixtures/policies/sba_policy_seed.md`. If you see 422 'file required', use **Upload Policy — SBA (JSON)** instead."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Policy — CRE (JSON) ★ use this",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('policyId', j.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"CRE Policy Seed\",\n  \"policy_version\": \"2026.05.1\",\n  \"effective_date\": \"2026-05-21\",\n  \"filename\": \"cre_policy_seed.md\",\n  \"content\": \"# CRE Acquisition Underwriting Policy — Seed\\n\\n## CRE-NOI-001 — Rent Roll Reconciliation\\nNet operating income on the rent roll must reconcile with executed lease terms within 5% variance.\\n\\n## CRE-GUAR-002 — Guarantor Alignment\\nLease guarantor entities must match operating agreement members or documented affiliate structures.\\n\\n## CRE-ADDR-003 — Property Verification\\nProperty address on appraisal must match lease and rent roll. Virtual office addresses require enhanced review.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/tenants/{{tenantId}}/policies/json",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "tenants", "{{tenantId}}", "policies", "json"]
+            },
+            "description": "CRE policy upload — no file attachment. Same endpoint as SBA JSON."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Policy (CRE seed — multipart file)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "CRE Policy Seed",
+                  "type": "text"
+                },
+                {
+                  "key": "policy_version",
+                  "value": "2026.05.1",
+                  "type": "text"
+                },
+                {
+                  "key": "effective_date",
+                  "value": "2026-05-21",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "description": "Click Select Files → postman/fixtures/policies/cre_policy_seed.md",
+                  "type": "file",
+                  "src": "fixtures/policies/cre_policy_seed.md"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/tenants/{{tenantId}}/policies",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "tenants", "{{tenantId}}", "policies"]
+            },
+            "description": "If 422 file required → use Upload Policy — CRE (JSON) instead."
+          },
+          "response": []
+        },
+        {
+          "name": "List Policies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/tenants/{{tenantId}}/policies",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "tenants", "{{tenantId}}", "policies"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cases",
+      "item": [
+        {
+          "name": "Create Case — SBA Fraudulent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 202 Accepted', () => pm.response.to.have.status(202));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('caseId', j.case_id);",
+                  "pm.environment.set('caseId', j.case_id);",
+                  "console.log('caseId saved:', j.case_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "vertical",
+                  "value": "sba_7a",
+                  "type": "text"
+                },
+                {
+                  "key": "tenant_id",
+                  "value": "{{tenantId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "metadata",
+                  "value": "{\"business_name\":\"Acme Consulting LLC\",\"employer\":\"Acme Consulting LLC\",\"address\":\"1200 Market Street Suite 400 Wilmington DE\",\"stated_employer\":\"Acme Consulting LLC\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/sba/fraudulent/form_1919.txt"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/sba/fraudulent/profit_loss.txt"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/sba/fraudulent/employment_letter.txt"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/sba/fraudulent/bank_statement.txt"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/cases",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "cases"]
+            },
+            "description": "Mock fraudulent SBA package. Expect `review` with contradictions when investigation completes. Requires worker running."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Case — SBA Clean (Happy Path)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 202', () => pm.response.to.have.status(202));",
+                  "pm.collectionVariables.set('caseId', pm.response.json().case_id);",
+                  "pm.environment.set('caseId', pm.response.json().case_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "vertical",
+                  "value": "sba_7a",
+                  "type": "text"
+                },
+                {
+                  "key": "tenant_id",
+                  "value": "{{tenantId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "metadata",
+                  "value": "{\"business_name\":\"Sunrise Bakery LLC\",\"employer\":\"Sunrise Bakery LLC\",\"address\":\"88 Main Street Portland OR\",\"stated_employer\":\"Sunrise Bakery LLC\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/sba/clean/form_1919.txt"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/sba/clean/profit_loss.txt"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/sba/clean/employment_letter.txt"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/cases",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "cases"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Case — CRE Fraudulent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 202', () => pm.response.to.have.status(202));",
+                  "pm.collectionVariables.set('caseId', pm.response.json().case_id);",
+                  "pm.environment.set('caseId', pm.response.json().case_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "vertical",
+                  "value": "cre_acquisition",
+                  "type": "text"
+                },
+                {
+                  "key": "tenant_id",
+                  "value": "{{tenantId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "metadata",
+                  "value": "{\"business_name\":\"Oak Plaza Holdings LLC\",\"address\":\"200 Oak Street Dallas TX\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/cre/fraudulent/rent_roll.txt"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/cre/fraudulent/commercial_lease.txt"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/cre/fraudulent/operating_agreement.txt"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/cases",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "cases"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Case — Specialty Mortgage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 202', () => pm.response.to.have.status(202));",
+                  "pm.collectionVariables.set('caseId', pm.response.json().case_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "vertical",
+                  "value": "specialty_mortgage_bank_statement",
+                  "type": "text"
+                },
+                {
+                  "key": "tenant_id",
+                  "value": "{{tenantId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "metadata",
+                  "value": "{\"business_name\":\"Jane Doe\",\"employer\":\"Tech Corp\",\"address\":\"100 Main St Austin TX\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": "fixtures/sba/clean/form_1919.txt",
+                  "description": "Placeholder — attach bank statement / LOE fixtures when available"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/cases",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "cases"]
+            },
+            "description": "Vertical enum: specialty_mortgage_bank_statement. Attach your own bank statement + VOE files if needed."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Case (poll status)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('caseId') && !pm.environment.get('caseId')) {",
+                  "  throw new Error('caseId is empty — run a Create Case request first');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('Has case_id', () => pm.expect(j.case_id).to.be.a('string'));",
+                  "console.log('status:', j.status, 'action:', j.case_file?.recommended_action);",
+                  "if (j.status === 'queued' || j.status === 'processing') {",
+                  "  console.warn('Still running — click Send again in ~10s (is worker running?)');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/cases/{{caseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "cases", "{{caseId}}"]
+            },
+            "description": "Poll until `status` is `completed` or `failed`. Uses `{{caseId}}` from last create request."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Case Audit Trail",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/cases/{{caseId}}/audit",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "cases", "{{caseId}}", "audit"]
+            },
+            "description": "Immutable investigation timeline: tool calls, ingest events, policy matches."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Workflows",
+      "description": "Run folders in order with Collection Runner.",
+      "item": [
+        {
+          "name": "1 — Setup policies",
+          "item": [
+            {
+              "name": "Upload Policy (SBA seed)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "title",
+                      "value": "SBA Policy Seed",
+                      "type": "text"
+                    },
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "fixtures/policies/sba_policy_seed.md"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/v1/tenants/{{tenantId}}/policies",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "tenants", "{{tenantId}}", "policies"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "2 — Fraud investigation flow",
+          "item": [
+            {
+              "name": "Create Case — SBA Fraudulent",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.collectionVariables.set('caseId', pm.response.json().case_id);",
+                      "pm.environment.set('caseId', pm.response.json().case_id);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "vertical",
+                      "value": "sba_7a",
+                      "type": "text"
+                    },
+                    {
+                      "key": "tenant_id",
+                      "value": "{{tenantId}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "metadata",
+                      "value": "{\"business_name\":\"Acme Consulting LLC\",\"employer\":\"Acme Consulting LLC\",\"address\":\"1200 Market Street Suite 400 Wilmington DE\",\"stated_employer\":\"Acme Consulting LLC\"}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "documents",
+                      "type": "file",
+                      "src": "fixtures/sba/fraudulent/form_1919.txt"
+                    },
+                    {
+                      "key": "documents",
+                      "type": "file",
+                      "src": "fixtures/sba/fraudulent/profit_loss.txt"
+                    },
+                    {
+                      "key": "documents",
+                      "type": "file",
+                      "src": "fixtures/sba/fraudulent/employment_letter.txt"
+                    },
+                    {
+                      "key": "documents",
+                      "type": "file",
+                      "src": "fixtures/sba/fraudulent/bank_statement.txt"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/v1/cases",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "cases"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Case (poll — run multiple times)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/cases/{{caseId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "cases", "{{caseId}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Case Audit Trail",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/cases/{{caseId}}/audit",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "cases", "{{caseId}}", "audit"]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
