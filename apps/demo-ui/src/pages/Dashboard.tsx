@@ -33,17 +33,22 @@ export function Dashboard() {
   const review = cases.filter((c) => c.recommended_action === "review").length;
 
   return (
-    <div className="p-8">
-      <header className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-slate-900">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl font-semibold text-slate-900 sm:text-2xl">
             Investigation cases
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             AI-powered document cross-check, policy RAG, and agentic case files
           </p>
         </div>
-        <button type="button" onClick={load} className="btn-secondary" disabled={loading}>
+        <button
+          type="button"
+          onClick={load}
+          className="btn-secondary w-full shrink-0 sm:w-auto"
+          disabled={loading}
+        >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
@@ -89,8 +94,51 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-left text-sm">
+      {/* Mobile: card list */}
+      <div className="space-y-3 md:hidden">
+        {loading && cases.length === 0 ? (
+          <p className="py-12 text-center text-sm text-slate-500">Loading cases…</p>
+        ) : cases.length === 0 ? (
+          <p className="py-12 text-center text-sm text-slate-500">
+            No cases yet.{" "}
+            <Link to="/new" className="font-medium text-brand-600 hover:underline">
+              Start an investigation
+            </Link>
+          </p>
+        ) : (
+          cases.map((c) => (
+            <Link
+              key={c.case_id}
+              to={`/cases/${c.case_id}`}
+              className="card block p-4 active:bg-slate-50"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-mono text-xs text-slate-500">{truncateId(c.case_id)}</span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-brand-600" />
+              </div>
+              <p className="mt-2 text-sm font-medium text-slate-900">
+                {formatVertical(c.vertical)}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <StatusBadge status={c.status} />
+                <ActionBadge action={c.recommended_action} />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                {c.contradictions_count > 0 && (
+                  <span className="mr-2 text-red-600">
+                    {c.contradictions_count} contradictions ·
+                  </span>
+                )}
+                {c.findings_count} findings · {formatDate(c.created_at)}
+              </p>
+            </Link>
+          ))
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="card hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="border-b border-surface-border bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-5 py-3 font-medium">Case</th>

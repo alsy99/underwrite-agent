@@ -46,19 +46,19 @@ export function CaseDetail() {
   const processing = data?.status === "queued" || data?.status === "processing";
 
   return (
-    <div className="p-8">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <Link
         to="/"
-        className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+        className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 sm:mb-6"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to cases
       </Link>
 
-      <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="font-mono text-xs text-slate-500">{caseId}</p>
-          <h1 className="mt-1 font-display text-2xl font-semibold text-slate-900">
+      <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="break-all font-mono text-xs text-slate-500">{caseId}</p>
+          <h1 className="mt-1 font-display text-xl font-semibold text-slate-900 sm:text-2xl">
             Investigation case file
           </h1>
           {data && (
@@ -95,7 +95,7 @@ export function CaseDetail() {
       {cf && (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <section className="card p-6">
+            <section className="card p-4 sm:p-6">
               <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-slate-900">
                 <FileText className="h-5 w-5 text-brand-600" />
                 Executive summary
@@ -106,7 +106,7 @@ export function CaseDetail() {
             </section>
 
             {cf.contradictions.length > 0 && (
-              <section className="card p-6">
+              <section className="card p-4 sm:p-6">
                 <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-slate-900">
                   <AlertTriangle className="h-5 w-5 text-red-500" />
                   Cross-document contradictions
@@ -136,7 +136,7 @@ export function CaseDetail() {
             )}
 
             {cf.policy_findings.length > 0 && (
-              <section className="card p-6">
+              <section className="card p-4 sm:p-6">
                 <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-slate-900">
                   <Scale className="h-5 w-5 text-brand-600" />
                   Policy compliance (RAG)
@@ -163,7 +163,7 @@ export function CaseDetail() {
             )}
 
             {cf.findings.length > 0 && (
-              <section className="card p-6">
+              <section className="card p-4 sm:p-6">
                 <h2 className="font-display text-lg font-semibold text-slate-900">
                   Structured findings
                 </h2>

@@ -30,8 +30,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-900 via-brand-800 to-slate-900 px-4">
-      <div className="card w-full max-w-md p-8 shadow-xl">
+    <div className="flex min-h-screen min-h-[100dvh] items-center justify-center bg-gradient-to-br from-brand-900 via-brand-800 to-slate-900 px-4 py-8">
+      <div className="card w-full max-w-md p-6 shadow-xl sm:p-8">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-white">
             <Shield className="h-6 w-6" />

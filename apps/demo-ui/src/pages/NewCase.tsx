@@ -77,9 +77,9 @@ export function NewCase() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-8">
-      <header className="mb-8">
-        <h1 className="font-display text-2xl font-semibold text-slate-900">
+    <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
+      <header className="mb-6 sm:mb-8">
+        <h1 className="font-display text-xl font-semibold text-slate-900 sm:text-2xl">
           New investigation
         </h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -88,13 +88,13 @@ export function NewCase() {
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="card p-6">
+        <div className="card p-4 sm:p-6">
           <label className="text-sm font-medium text-slate-700">Demo package</label>
           <div className="mt-3 grid gap-2">
             {Object.entries(PRESETS).map(([key, val]) => (
               <label
                 key={key}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition ${
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition sm:items-center sm:px-4 ${
                   preset === key
                     ? "border-brand-500 bg-brand-50"
                     : "border-surface-border hover:border-slate-300"
@@ -120,16 +120,16 @@ export function NewCase() {
           </p>
         </div>
 
-        <div className="card p-6">
+        <div className="card p-4 sm:p-6">
           <label className="text-sm font-medium text-slate-700">Documents</label>
-          <div className="mt-3 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10">
+          <div className="mt-3 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
             <FileUp className="h-8 w-8 text-slate-400" />
             <p className="mt-2 text-sm text-slate-600">PDF or text files</p>
             <input
               type="file"
               multiple
               accept=".pdf,.txt,.md"
-              className="mt-4 max-w-full text-sm"
+              className="mt-4 w-full max-w-full text-sm file:mr-2 file:rounded file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-brand-700"
               onChange={(e) => setFiles(Array.from(e.target.files || []))}
             />
             {files.length > 0 && (
