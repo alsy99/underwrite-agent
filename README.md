@@ -37,7 +37,7 @@ Fast happy path (no Ollama):
 python scripts/run_happy_flow.py
 ```
 
-## Demo UI (product dashboard)
+## Demo UI (local only)
 
 ```bash
 ./scripts/start-api.sh          # terminal 1
@@ -47,25 +47,73 @@ python scripts/run_happy_flow.py
 
 Features: case list, new investigation upload, live case file + audit trail viewer.
 
-### Host from your PC (LAN / internet)
+## Remote access (internet demo)
+
+The **UI** is hosted on GitHub Pages. The **API + worker** run on your Mac and are exposed with a tunnel.
+
+### One-time setup
+
+1. Copy env and install deps (if you have not already):
+
+   ```bash
+   cp .env.example .env
+   pip install -e ".[dev]"
+   brew services start postgresql@14 redis
+   brew install cloudflared   # tunnel (or ngrok + authtoken)
+   ```
+
+2. In `.env`, set at least:
+
+   ```bash
+   API_KEY=your-long-random-key
+   CORS_GITHUB_PAGES=true
+   UI_PASSWORD=your-demo-login-password   # optional; GitHub secret uses this name
+   ```
+
+3. On GitHub → repo **Settings → Secrets and variables → Actions**, add:
+
+   | Secret | Value |
+   |--------|--------|
+   | `VITE_API_URL` | filled automatically by start script, or your tunnel URL |
+   | `VITE_API_KEY` | same as `API_KEY` in `.env` |
+   | `UI_PASSWORD` | same as demo login password |
+
+4. Enable Pages: **Settings → Pages → Source → GitHub Actions**.
+
+### Every demo session (start in order)
 
 ```bash
-./scripts/start-remote.sh       # prints LAN URLs + setup steps
-# then in 3 terminals with REMOTE_ACCESS=1 on API + UI, or START_ALL=1 ./scripts/start-remote.sh
+./scripts/start-internet-session.sh
 ```
 
-**Internet without router config:** `brew install cloudflared` then `./scripts/tunnel-cloudflared.sh` while the UI is running.
+This starts **API → worker → Cloudflare tunnel**, updates `VITE_API_URL` on GitHub (if `gh` is logged in), and triggers a Pages redeploy.
 
-Full guide: [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md)
+5. Open the app (wait ~1–2 min after deploy):
 
-### Internet: GitHub Pages + ngrok (password-protected)
+   **https://alsy99.github.io/underwrite-agent/**
 
-UI on **GitHub Pages**, API on your Mac via **ngrok**. See [docs/INTERNET_DEPLOY.md](docs/INTERNET_DEPLOY.md).
+   Use your `UI_PASSWORD` (GitHub secret). Hard-refresh on mobile if the layout looks wrong.
+
+6. When finished:
+
+   ```bash
+   ./scripts/stop-internet-session.sh
+   ```
+
+### Same Wi‑Fi only (no GitHub Pages)
 
 ```bash
-./scripts/tunnel-ngrok.sh          # after API + worker are up
-./scripts/hash-ui-password.sh '…'  # optional local UI password hash
+./scripts/start-api.sh
+./scripts/start-worker.sh
+./scripts/start-demo-ui.sh      # open http://<your-lan-ip>:5173 on phone
 ```
+
+See [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md) for LAN troubleshooting.
+
+### More detail
+
+- [docs/INTERNET_DEPLOY.md](docs/INTERNET_DEPLOY.md) — tunnels, secrets, ngrok
+- [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md) — LAN / firewall
 
 ## API
 
