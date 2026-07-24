@@ -1,9 +1,13 @@
+from __future__ import annotations
+
+import re
 from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.worker.agent_graph import InvestigationState, build_investigation_graph
 from packages.agent.case_file import CaseFileBuilder
 from packages.agent.tools.registry import ToolRegistry
 from packages.audit.logger import AuditLogger
@@ -13,119 +17,238 @@ from packages.db.models import CaseRecord
 from packages.documents.pipeline import DocumentPipeline
 from packages.llm.client import LLMClient
 from packages.policy_rag.service import PolicyRAGService
-from packages.schemas.case import (
-    CaseFile,
-    Contradiction,
-    LoanVertical,
-    PolicyFinding,
-    RecommendedAction,
-)
+from packages.schemas.case import CaseFile, LoanVertical
+
+
+# Tools the agent may schedule after cross-check / policy RAG (not re-run those).
+INVESTIGATION_TOOLS = {
+    "lookup_business_registry",
+    "verify_employer_osint",
+    "geocode_address",
+    "address_risk_signals",
+    "search_documents",
+}
+
+DEFAULT_TOOL_PLAN: list[tuple[str, dict[str, Any]]] = [
+    ("lookup_business_registry", {"entity_name": "{business_name}"}),
+    ("verify_employer_osint", {"employer": "{employer}"}),
+    ("geocode_address", {"address": "{address}"}),
+    ("address_risk_signals", {"address": "{address}"}),
+]
 
 
 class InvestigationRunner:
-    """Sherlock investigation pipeline — LangGraph-style explicit stages."""
-
-    PLAN_TOOLS = [
-        ("cross_check_narratives", {}),
-        ("query_policy_rag", {}),
-        ("lookup_business_registry", {"entity_name": "{business_name}"}),
-        ("verify_employer_osint", {"employer": "{employer}"}),
-        ("geocode_address", {"address": "{address}"}),
-        ("address_risk_signals", {"address": "{address}"}),
-    ]
+    """Sherlock investigation pipeline driven by a LangGraph state machine."""
 
     def __init__(self, session: AsyncSession, case_id: str):
         self.session = session
         self.case_id = case_id
         self.settings = get_settings()
         self.llm = LLMClient()
+        self.builder = CaseFileBuilder()
+        self.audit: AuditLogger | None = None
+        self.case: CaseRecord | None = None
+        self.tools: ToolRegistry | None = None
 
     async def run(self) -> CaseFile:
+        graph = build_investigation_graph(self)
+        final: InvestigationState = await graph.ainvoke(
+            {"case_id": self.case_id, "step_count": 0, "tool_results": [], "timeline": []}
+        )
+        return CaseFile.model_validate(final["case_file"])
+
+    async def node_intake(self, state: InvestigationState) -> InvestigationState:
         case = await self._get_case()
+        self.case = case
         case.status = "processing"
         await self.session.flush()
 
-        audit = AuditLogger(self.session, case.id)
-        builder = CaseFileBuilder()
+        self.audit = AuditLogger(self.session, case.id)
         doc_pipeline = DocumentPipeline(self.session, case.id, case.tenant_id)
         bundle = await doc_pipeline.get_case_text_bundle()
 
-        vertical = LoanVertical(case.vertical)
-        metadata = case.metadata_json or {}
+        metadata = dict(case.metadata_json or {})
+        metadata = self._enrich_metadata(metadata, bundle)
+        case.metadata_json = metadata
 
-        await audit.log(
+        self.tools = ToolRegistry(
+            self.session,
+            case.id,
+            case.tenant_id,
+            LoanVertical(case.vertical),
+            metadata,
+        )
+
+        await self.audit.log(
             actor="system",
             action="investigation_started",
             inputs={"vertical": case.vertical},
             prompt_version="investigation_v1",
         )
+        self.builder.log_step("intake", f"Loaded case {case.id} ({case.vertical})")
 
-        cross_engine = CrossCheckEngine(self.session, case.id, vertical)
-        contradictions = await cross_engine.run(bundle)
-        builder.add_contradictions(contradictions)
-        builder.log_step("cross_check_narratives", f"Found {len(contradictions)} contradictions")
+        return {
+            **state,
+            "tenant_id": case.tenant_id,
+            "vertical": case.vertical,
+            "metadata": metadata,
+            "document_bundle": bundle,
+        }
 
+    async def node_cross_check(self, state: InvestigationState) -> InvestigationState:
+        assert self.case and self.audit
+        vertical = LoanVertical(state["vertical"])
+        cross_engine = CrossCheckEngine(self.session, self.case.id, vertical)
+        contradictions = await cross_engine.run(state["document_bundle"])
+        self.builder.add_contradictions(contradictions)
+        self.builder.log_step(
+            "cross_check_narratives", f"Found {len(contradictions)} contradictions"
+        )
+        return {**state, "contradictions": contradictions}
+
+    async def node_policy_rag(self, state: InvestigationState) -> InvestigationState:
+        assert self.case and self.audit
         policy = PolicyRAGService(self.session)
         policy_findings = await policy.evaluate_case(
-            case.tenant_id, case.id, bundle, case.vertical
+            state["tenant_id"],
+            self.case.id,
+            state["document_bundle"],
+            state["vertical"],
         )
-        builder.add_policy_findings(policy_findings)
-        builder.log_step("query_policy_rag", f"{len(policy_findings)} policy findings")
+        self.builder.add_policy_findings(policy_findings)
+        self.builder.log_step("query_policy_rag", f"{len(policy_findings)} policy findings")
+        return {**state, "policy_findings": policy_findings}
 
-        tools = ToolRegistry(
-            self.session, case.id, case.tenant_id, vertical, metadata
-        )
-        steps_run = 0
-        max_steps = self.settings.max_agent_steps
-
-        plan = self._build_plan(metadata)
-        await audit.log(
+    async def node_plan(self, state: InvestigationState) -> InvestigationState:
+        assert self.audit
+        plan = await self._build_dynamic_plan(state)
+        await self.audit.log(
             actor="agent",
             action="plan_created",
-            outputs={"steps": plan},
+            outputs={"steps": [{"tool": t, "args": a} for t, a in plan]},
             prompt_version="plan_v1",
         )
-        builder.log_step("plan_investigation", f"Planned {len(plan)} tool steps")
+        self.builder.log_step("plan_investigation", f"Planned {len(plan)} tool steps")
+        return {**state, "plan": plan}
+
+    async def node_agent_loop(self, state: InvestigationState) -> InvestigationState:
+        assert self.tools and self.audit
+        plan = list(state.get("plan") or [])
+        metadata = state.get("metadata") or {}
+        results: list[dict[str, Any]] = list(state.get("tool_results") or [])
+        steps_run = int(state.get("step_count") or 0)
+        max_steps = self.settings.max_agent_steps
 
         for tool_name, args in plan:
             if steps_run >= max_steps:
                 break
+            if tool_name not in INVESTIGATION_TOOLS:
+                continue
             resolved_args = self._resolve_args(args, metadata)
-            result = await tools.execute(tool_name, resolved_args, bundle)
+            result = await self.tools.execute(tool_name, resolved_args, state["document_bundle"])
             steps_run += 1
-            builder.log_step(tool_name, str(result)[:300])
-            await audit.log(
+            results.append({"tool": tool_name, "args": resolved_args, "result": result})
+            self.builder.log_step(tool_name, str(result)[:300])
+            await self.audit.log(
                 actor="agent",
                 action="tool_call",
                 inputs={"tool": tool_name, "args": resolved_args},
                 outputs=result if isinstance(result, dict) else {"result": str(result)},
                 prompt_version="tool_v1",
             )
-            self._absorb_tool_results(builder, tool_name, result, contradictions, policy_findings)
+            self._absorb_tool_results(tool_name, result)
 
-        summary = await self._synthesize_brief(builder, bundle, case.vertical)
-        case_file = builder.build(summary)
-        case.status = "completed"
-        case.completed_at = datetime.now(timezone.utc)
-        case.case_file_json = case_file.model_dump(mode="json")
+        return {**state, "tool_results": results, "step_count": steps_run}
+
+    async def node_synthesize(self, state: InvestigationState) -> InvestigationState:
+        summary = await self._synthesize_brief(state["vertical"])
+        return {**state, "executive_summary": summary}
+
+    async def node_finalize(self, state: InvestigationState) -> InvestigationState:
+        assert self.case
+        case_file = self.builder.build(state.get("executive_summary") or "")
+        self.case.status = "completed"
+        self.case.completed_at = datetime.now(timezone.utc)
+        self.case.case_file_json = case_file.model_dump(mode="json")
         await self.session.commit()
-        return case_file
+        return {**state, "case_file": case_file.model_dump(mode="json")}
 
     async def _get_case(self) -> CaseRecord:
         result = await self.session.execute(
             select(CaseRecord).where(CaseRecord.id == self.case_id)
         )
-        case = result.scalar_one()
-        return case
+        return result.scalar_one()
 
-    def _build_plan(self, metadata: dict[str, Any]) -> list[tuple[str, dict]]:
-        plan = []
-        for tool, args in self.PLAN_TOOLS:
+    async def _build_dynamic_plan(
+        self, state: InvestigationState
+    ) -> list[tuple[str, dict[str, Any]]]:
+        metadata = state.get("metadata") or {}
+        system = (
+            "You are an underwriting fraud investigation planner. "
+            "Given case metadata and prior findings, choose which tools to run next. "
+            "Output JSON only: "
+            '{"steps":[{"tool":"lookup_business_registry|verify_employer_osint|'
+            'geocode_address|address_risk_signals|search_documents","args":{...}}]} '
+            "Do not include cross_check_narratives or query_policy_rag — already done. "
+            "Prefer 2-5 high-value tools. Skip tools when required args are empty."
+        )
+        user = (
+            f"Vertical: {state.get('vertical')}\n"
+            f"Metadata: {metadata}\n"
+            f"Contradiction count: {len(state.get('contradictions') or [])}\n"
+            f"Policy finding count: {len(state.get('policy_findings') or [])}\n"
+            f"Document excerpt:\n{(state.get('document_bundle') or '')[:4000]}"
+        )
+        raw = await self.llm.complete_json(system, user, prompt_version="plan_v1")
+        plan: list[tuple[str, dict[str, Any]]] = []
+        for step in raw.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            tool = step.get("tool")
+            if tool not in INVESTIGATION_TOOLS:
+                continue
+            args = step.get("args") if isinstance(step.get("args"), dict) else {}
             plan.append((tool, args))
+
+        if not plan:
+            plan = list(DEFAULT_TOOL_PLAN)
+
+        # Drop tools that would run with empty required args.
+        filtered: list[tuple[str, dict[str, Any]]] = []
+        for tool, args in plan:
+            resolved = self._resolve_args(args, metadata)
+            if tool == "lookup_business_registry" and not (
+                resolved.get("entity_name") or metadata.get("business_name")
+            ):
+                continue
+            if tool == "verify_employer_osint" and not (
+                resolved.get("employer")
+                or metadata.get("employer")
+                or metadata.get("stated_employer")
+            ):
+                continue
+            if tool in ("geocode_address", "address_risk_signals") and not (
+                resolved.get("address") or metadata.get("address")
+            ):
+                continue
+            if tool == "search_documents" and not resolved.get("query"):
+                continue
+            # Fill placeholder defaults from metadata when LLM omitted args.
+            if tool == "lookup_business_registry" and not resolved.get("entity_name"):
+                args = {**args, "entity_name": "{business_name}"}
+            if tool == "verify_employer_osint" and not resolved.get("employer"):
+                args = {**args, "employer": "{employer}"}
+            if tool in ("geocode_address", "address_risk_signals") and not resolved.get(
+                "address"
+            ):
+                args = {**args, "address": "{address}"}
+            filtered.append((tool, args))
+
         if metadata.get("search_queries"):
             for q in metadata["search_queries"][:2]:
-                plan.insert(0, ("search_documents", {"query": q}))
-        return plan[: self.settings.max_agent_steps]
+                filtered.insert(0, ("search_documents", {"query": q}))
+
+        return filtered[: self.settings.max_agent_steps]
 
     def _resolve_args(self, args: dict, metadata: dict) -> dict:
         resolved = {}
@@ -137,57 +260,82 @@ class InvestigationRunner:
                 resolved[k] = v
         return resolved
 
-    def _absorb_tool_results(
-        self,
-        builder: CaseFileBuilder,
-        tool: str,
-        result: dict,
-        existing_contradictions: list[Contradiction],
-        existing_policy: list[PolicyFinding],
-    ) -> None:
+    def _enrich_metadata(self, metadata: dict[str, Any], bundle: str) -> dict[str, Any]:
+        enriched = dict(metadata)
+        if not enriched.get("business_name"):
+            m = re.search(
+                r"(?:business(?:\s+name)?|applicant|borrower|entity)\s*[:\-]\s*([A-Za-z0-9 &.,'\-]+LLC|[A-Za-z0-9 &.,'\-]+Inc\.?)",
+                bundle,
+                re.IGNORECASE,
+            )
+            if m:
+                enriched["business_name"] = m.group(1).strip()
+        if not enriched.get("employer") and not enriched.get("stated_employer"):
+            m = re.search(
+                r"(?:employer|employed by|works at)\s*[:\-]?\s*([A-Za-z0-9 &.,'\-]+(?:LLC|Inc\.?|Corp\.?)?)",
+                bundle,
+                re.IGNORECASE,
+            )
+            if m:
+                enriched["employer"] = m.group(1).strip()
+                enriched.setdefault("stated_employer", enriched["employer"])
+        if not enriched.get("address"):
+            m = re.search(
+                r"(?:address|located at|property)\s*[:\-]\s*([^\n]{10,120})",
+                bundle,
+                re.IGNORECASE,
+            )
+            if m:
+                enriched["address"] = m.group(1).strip().rstrip(".")
+        if enriched.get("employer") and not enriched.get("stated_employer"):
+            enriched["stated_employer"] = enriched["employer"]
+        return enriched
+
+    def _absorb_tool_results(self, tool: str, result: dict) -> None:
         if tool == "lookup_business_registry" and result.get("status") == "not_found":
-            builder.add_finding(
+            self.builder.add_finding(
                 "medium",
                 "Entity registry lookup",
                 f"Could not verify entity: {result.get('entity_name')}",
             )
         if tool == "verify_employer_osint" and not result.get("match"):
-            builder.add_finding(
+            self.builder.add_finding(
                 "high",
                 "Employer OSINT mismatch",
                 f"Stated employer does not match verification target ({result.get('employer')})",
             )
         if tool == "address_risk_signals" and result.get("risk_level") == "high":
-            builder.add_finding(
+            self.builder.add_finding(
                 "medium",
                 "Address risk signals",
                 f"Signals: {', '.join(result.get('signals', []))}",
             )
-            builder.open_questions.append("Confirm business operates at stated address")
+            self.builder.open_questions.append(
+                "Confirm business operates at stated address"
+            )
 
-    async def _synthesize_brief(
-        self, builder: CaseFileBuilder, bundle: str, vertical: str
-    ) -> str:
+    async def _synthesize_brief(self, vertical: str) -> str:
         system = (
             "Write a 1-page executive summary for a human underwriter based ONLY on "
             "the structured findings provided. Be concise and factual."
         )
         facts = {
             "vertical": vertical,
-            "contradictions": [c.model_dump() for c in builder.contradictions],
-            "policy_findings": [p.model_dump() for p in builder.policy_findings],
-            "findings": [f.model_dump() for f in builder.findings],
-            "recommended_action": builder.recommend_action().value,
+            "contradictions": [c.model_dump() for c in self.builder.contradictions],
+            "policy_findings": [p.model_dump() for p in self.builder.policy_findings],
+            "findings": [f.model_dump() for f in self.builder.findings],
+            "recommended_action": self.builder.recommend_action().value,
         }
         user = f"Structured facts:\n{facts}"
         text = await self.llm.complete(system, user, prompt_version="brief_v1")
         if not text or len(text) < 50:
-            n_contra = len(builder.contradictions)
-            n_policy = len(builder.policy_findings)
-            action = builder.recommend_action().value
+            n_contra = len(self.builder.contradictions)
+            n_policy = len(self.builder.policy_findings)
+            action = self.builder.recommend_action().value
             text = (
                 f"Underwriting investigation for {vertical} loan package complete. "
-                f"Detected {n_contra} cross-document contradiction(s) and {n_policy} policy finding(s). "
+                f"Detected {n_contra} cross-document contradiction(s) and "
+                f"{n_policy} policy finding(s). "
                 f"Recommended action: {action}. "
             )
             if n_contra == 0:

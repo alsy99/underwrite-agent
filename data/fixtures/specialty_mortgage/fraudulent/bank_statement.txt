@@ -1,0 +1,15 @@
+BANK STATEMENT
+Account holder: Jordan Lee / Apex Design Studio LLC
+Account: ****8841
+Period: Jan 2026
+
+Beginning balance: $4,210.00
+Deposits:
+  01/03 ACH payroll-like credit        $2,400.00
+  01/08 Wire from CryptoExchange       $6,800.00
+  01/15 Cash deposit                   $1,100.00
+  01/22 ACH client payment             $2,900.00
+Ending balance: $3,880.00
+
+Average monthly deposits (12-mo summary): $9,200
+Note: Large crypto wire appears unsourced for mortgage qualification.

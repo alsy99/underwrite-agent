@@ -151,4 +151,4 @@ pytest tests/ -q
 
 ## Architecture
 
-See plan document for pipeline diagram. Core flow: document ingest → cross-check → policy RAG → agent tools → case file + audit log.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the pipeline diagram. Core flow: document ingest → cross-check → policy RAG → agent tools → case file + audit log.

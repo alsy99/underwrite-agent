@@ -112,12 +112,23 @@ class PolicyRAGService:
         if not chunks:
             from pathlib import Path
 
-            seed = Path(__file__).resolve().parents[2] / "data" / "fixtures" / "policies" / "sba_policy_seed.md"
+            seed_map = {
+                "cre_acquisition": "cre_policy_seed.md",
+                "specialty_mortgage_bank_statement": "specialty_mortgage_policy_seed.md",
+            }
+            seed_name = seed_map.get(vertical, "sba_policy_seed.md")
+            seed = (
+                Path(__file__).resolve().parents[2]
+                / "data"
+                / "fixtures"
+                / "policies"
+                / seed_name
+            )
             if seed.exists():
                 await self.ingest_policy(
                     tenant_id,
-                    "SBA Policy Seed",
-                    "sba_policy_seed.md",
+                    f"{vertical} Policy Seed",
+                    seed.name,
                     seed.read_bytes(),
                     policy_version="seed",
                 )

@@ -12,5 +12,5 @@ SPECIALTY_MORTGAGE_PACK = VerticalPack(
         ("employment_letter employer and role", "application employer"),
         ("letter of explanation deposits", "bank_statement large deposits"),
     ],
-    policy_seed_path="data/fixtures/policies/sba_policy_seed.md",
+    policy_seed_path="data/fixtures/policies/specialty_mortgage_policy_seed.md",
 )

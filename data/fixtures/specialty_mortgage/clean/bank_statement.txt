@@ -1,0 +1,14 @@
+BANK STATEMENT
+Account holder: Priya Patel / Cascade Analytics LLC
+Account: ****2201
+Period: Jan 2026
+
+Beginning balance: $28,400.00
+Deposits:
+  01/05 Client retainer                $6,200.00
+  01/12 Client milestone               $3,100.00
+  01/19 Client retainer                $3,100.00
+Ending balance: $31,050.00
+
+Average monthly deposits (12-mo summary): $12,150
+All deposits are client receivables consistent with stated income.

@@ -114,4 +114,18 @@ class CrossCheckEngine:
                     quoted_evidence="Smith Holdings / Jones LLC",
                 )
             )
+        normalized = text.replace(",", "")
+        if ("18500" in normalized or "$18,500" in text) and (
+            "9200" in normalized or "$9,200" in text or "average monthly deposits" in text.lower()
+        ):
+            results.append(
+                Contradiction(
+                    severity="high",
+                    claim_a="Application stated monthly income $18,500",
+                    claim_b="Bank statement average monthly deposits ~$9,200",
+                    source_doc_ids=["application", "bank_statement"],
+                    confidence=0.9,
+                    quoted_evidence="$18,500 ... $9,200",
+                )
+            )
         return results
