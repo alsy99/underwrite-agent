@@ -92,6 +92,17 @@ class CrossCheckEngine:
                     quoted_evidence="Acme Consulting LLC / Beta Industries Inc",
                 )
             )
+        if "Apex Design Studio" in text and "Nova Media" in text:
+            results.append(
+                Contradiction(
+                    severity="high",
+                    claim_a="Employer Apex Design Studio LLC on application",
+                    claim_b="Verification letter names Nova Media Group Inc",
+                    source_doc_ids=["application", "employment_letter"],
+                    confidence=0.91,
+                    quoted_evidence="Apex Design Studio LLC / Nova Media Group Inc",
+                )
+            )
         if ("450,000" in text or "450000" in text) and ("320,000" in text or "320000" in text):
             results.append(
                 Contradiction(

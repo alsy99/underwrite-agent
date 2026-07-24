@@ -136,6 +136,17 @@ def _heuristic_contradictions(user: str) -> list[dict]:
                 "quoted_evidence": "Acme Consulting LLC ... Beta Industries Inc",
             }
         )
+    if "Apex Design Studio" in user and "Nova Media" in user:
+        contradictions.append(
+            {
+                "severity": "high",
+                "claim_a": "Employer listed as Apex Design Studio LLC on application",
+                "claim_b": "Employment verification letter references Nova Media Group Inc",
+                "source_doc_ids": ["application", "employment_letter"],
+                "confidence": 0.91,
+                "quoted_evidence": "Apex Design Studio LLC ... Nova Media Group Inc",
+            }
+        )
     if ("450000" in user or "450,000" in user) and ("320000" in user or "320,000" in user):
         contradictions.append(
             {
