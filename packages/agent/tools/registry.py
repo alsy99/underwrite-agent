@@ -91,6 +91,20 @@ class ToolRegistry:
                 "registered_agent": "CT Corporation",
                 "ein_match": True,
             },
+            "Apex Design Studio LLC": {
+                "status": "active",
+                "registered_state": "TX",
+                "incorporation_date": "2021-01-15",
+                "registered_agent": "Texas Registered Agent LLC",
+                "ein_match": True,
+            },
+            "Cascade Analytics LLC": {
+                "status": "active",
+                "registered_state": "OR",
+                "incorporation_date": "2019-06-01",
+                "registered_agent": "Northwest Registered Agent",
+                "ein_match": True,
+            },
         }
         for name, data in fixtures.items():
             if name.lower() in entity_name.lower() or entity_name.lower() in name.lower():
@@ -109,6 +123,8 @@ class ToolRegistry:
         stated = self.metadata.get("stated_employer", employer)
         match = stated.lower() in employer.lower() or employer.lower() in stated.lower()
         if "Beta" in employer and "Acme" in stated:
+            match = False
+        if "Nova" in employer and "Apex" in stated:
             match = False
         return {
             "employer": employer,

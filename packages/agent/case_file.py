@@ -80,9 +80,15 @@ class CaseFileBuilder:
         )
 
     def recommend_action(self) -> RecommendedAction:
-        if any(c.severity == "high" for c in self.contradictions):
-            return RecommendedAction.REVIEW
-        if any(p.status == "fail" for p in self.policy_findings):
+        high_contras = sum(1 for c in self.contradictions if c.severity == "high")
+        policy_fails = sum(1 for p in self.policy_findings if p.status == "fail")
+        high_findings = sum(1 for f in self.findings if f.severity == "high")
+
+        # Advisory MVP: auto-decline only when multiple independent high-severity signals agree.
+        if high_contras >= 2 and (policy_fails >= 1 or high_findings >= 2):
+            return RecommendedAction.DECLINE
+
+        if high_contras >= 1 or policy_fails >= 1:
             return RecommendedAction.REVIEW
         if any(p.status == "review" for p in self.policy_findings):
             return RecommendedAction.REVIEW
@@ -101,6 +107,11 @@ class CaseFileBuilder:
             self.open_questions = [
                 "Confirm employer and revenue documentation with primary sources",
                 "Validate business address is not a virtual office",
+            ]
+        if action == RecommendedAction.DECLINE and not self.open_questions:
+            self.open_questions = [
+                "Escalate to senior underwriter before final adverse action",
+                "Request borrower letter of explanation for material contradictions",
             ]
         return CaseFile(
             executive_summary=executive_summary,

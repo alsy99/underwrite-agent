@@ -34,6 +34,9 @@ class EmbeddingService:
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
+        # Fast deterministic vectors for heuristic/offline demos (no model download).
+        if self.settings.llm_provider.lower() == "heuristic":
+            return [self._hash_embed(t) for t in texts]
         client = self._get_azure_client()
         if client and self.settings.azure_openai_embedding_deployment:
             resp = await client.embeddings.create(
@@ -44,9 +47,29 @@ class EmbeddingService:
             if len(vectors[0]) != self.DIMENSION:
                 return [self._resize(v) for v in vectors]
             return vectors
-        model = self._get_local_model()
-        arr = model.encode(texts, normalize_embeddings=True)
-        return [self._resize(v.tolist()) for v in arr]
+        try:
+            model = self._get_local_model()
+            arr = model.encode(texts, normalize_embeddings=True)
+            return [self._resize(v.tolist()) for v in arr]
+        except Exception:
+            return [self._hash_embed(t) for t in texts]
+
+    def _hash_embed(self, text: str) -> list[float]:
+        import hashlib
+        import math
+
+        vec = [0.0] * self.DIMENSION
+        tokens = text.lower().split()
+        if not tokens:
+            tokens = ["empty"]
+        for tok in tokens:
+            digest = hashlib.sha256(tok.encode("utf-8")).digest()
+            for i in range(0, min(len(digest), 32)):
+                idx = (digest[i] + i * 17) % self.DIMENSION
+                sign = 1.0 if digest[i] % 2 == 0 else -1.0
+                vec[idx] += sign
+        norm = math.sqrt(sum(x * x for x in vec)) or 1.0
+        return [x / norm for x in vec]
 
     def _resize(self, vector: list[float]) -> list[float]:
         if len(vector) == self.DIMENSION:

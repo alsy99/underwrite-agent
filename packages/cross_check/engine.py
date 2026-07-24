@@ -92,6 +92,17 @@ class CrossCheckEngine:
                     quoted_evidence="Acme Consulting LLC / Beta Industries Inc",
                 )
             )
+        if "Apex Design Studio" in text and "Nova Media" in text:
+            results.append(
+                Contradiction(
+                    severity="high",
+                    claim_a="Employer Apex Design Studio LLC on application",
+                    claim_b="Verification letter names Nova Media Group Inc",
+                    source_doc_ids=["application", "employment_letter"],
+                    confidence=0.91,
+                    quoted_evidence="Apex Design Studio LLC / Nova Media Group Inc",
+                )
+            )
         if ("450,000" in text or "450000" in text) and ("320,000" in text or "320000" in text):
             results.append(
                 Contradiction(
@@ -112,6 +123,20 @@ class CrossCheckEngine:
                     source_doc_ids=["commercial_lease", "operating_agreement"],
                     confidence=0.8,
                     quoted_evidence="Smith Holdings / Jones LLC",
+                )
+            )
+        normalized = text.replace(",", "")
+        if ("18500" in normalized or "$18,500" in text) and (
+            "9200" in normalized or "$9,200" in text or "average monthly deposits" in text.lower()
+        ):
+            results.append(
+                Contradiction(
+                    severity="high",
+                    claim_a="Application stated monthly income $18,500",
+                    claim_b="Bank statement average monthly deposits ~$9,200",
+                    source_doc_ids=["application", "bank_statement"],
+                    confidence=0.9,
+                    quoted_evidence="$18,500 ... $9,200",
                 )
             )
         return results

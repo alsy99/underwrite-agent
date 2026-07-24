@@ -95,17 +95,31 @@ class LLMClient:
                 "No material cross-document contradictions. Policy revenue check passes. "
                 "Recommend approval pending standard identity and deposit verification."
             )
-        if "plan" in system.lower():
-            return json.dumps(
+        if "plan" in system.lower() or "planner" in system.lower():
+            steps = [
                 {
-                    "steps": [
-                        "cross_check_narratives",
-                        "query_policy_rag",
-                        "lookup_business_registry",
-                        "geocode_address",
-                    ]
-                }
-            )
+                    "tool": "lookup_business_registry",
+                    "args": {"entity_name": "{business_name}"},
+                },
+                {
+                    "tool": "verify_employer_osint",
+                    "args": {"employer": "{employer}"},
+                },
+                {"tool": "geocode_address", "args": {"address": "{address}"}},
+                {
+                    "tool": "address_risk_signals",
+                    "args": {"address": "{address}"},
+                },
+            ]
+            if "bank statement" in user.lower() or "specialty_mortgage" in user.lower():
+                steps.insert(
+                    0,
+                    {
+                        "tool": "search_documents",
+                        "args": {"query": "large deposits income pattern"},
+                    },
+                )
+            return json.dumps({"steps": steps})
         return json.dumps({"result": "ok"})
 
 
@@ -120,6 +134,17 @@ def _heuristic_contradictions(user: str) -> list[dict]:
                 "source_doc_ids": ["application", "employment_letter"],
                 "confidence": 0.92,
                 "quoted_evidence": "Acme Consulting LLC ... Beta Industries Inc",
+            }
+        )
+    if "Apex Design Studio" in user and "Nova Media" in user:
+        contradictions.append(
+            {
+                "severity": "high",
+                "claim_a": "Employer listed as Apex Design Studio LLC on application",
+                "claim_b": "Employment verification letter references Nova Media Group Inc",
+                "source_doc_ids": ["application", "employment_letter"],
+                "confidence": 0.91,
+                "quoted_evidence": "Apex Design Studio LLC ... Nova Media Group Inc",
             }
         )
     if ("450000" in user or "450,000" in user) and ("320000" in user or "320,000" in user):
@@ -144,6 +169,20 @@ def _heuristic_contradictions(user: str) -> list[dict]:
                 "quoted_evidence": "UPS Store #4421",
             }
         )
+    if ("stated monthly income" in user.lower() or "stated income" in user.lower()) and (
+        "$18,500" in user or "18500" in user.replace(",", "")
+    ):
+        if "$9,200" in user or "9200" in user.replace(",", "") or "average deposits" in user.lower():
+            contradictions.append(
+                {
+                    "severity": "high",
+                    "claim_a": "Application stated monthly income $18,500",
+                    "claim_b": "Bank statement average qualifying deposits far lower",
+                    "source_doc_ids": ["application", "bank_statement"],
+                    "confidence": 0.9,
+                    "quoted_evidence": "stated monthly income $18,500 ... average deposits",
+                }
+            )
     return contradictions
 
 
@@ -168,6 +207,28 @@ def _heuristic_policy(user: str) -> list[dict]:
                 "excerpt": "Revenue on application must reconcile within 10% of tax/P&L documentation",
                 "source_policy_doc_id": "policy_seed",
                 "confidence": 0.9,
+            }
+        )
+    if ("18,500" in user or "18500" in user.replace(",", "")) and (
+        "9,200" in user or "9200" in user.replace(",", "")
+    ):
+        findings.append(
+            {
+                "rule_ref": "BSM-INC-001",
+                "status": "fail",
+                "excerpt": "Stated monthly income must reconcile within 15% of average eligible deposits",
+                "source_policy_doc_id": "policy_seed",
+                "confidence": 0.92,
+            }
+        )
+    if "crypto" in case_text.lower() and "bank statement" in case_text.lower():
+        findings.append(
+            {
+                "rule_ref": "BSM-DEP-002",
+                "status": "review",
+                "excerpt": "Unsourced large deposits above $5,000 must be excluded from qualifying income",
+                "source_policy_doc_id": "policy_seed",
+                "confidence": 0.88,
             }
         )
     if not findings:

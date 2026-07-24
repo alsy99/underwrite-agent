@@ -40,6 +40,17 @@ const PRESETS: Record<
     },
     hint: "Upload files from data/fixtures/cre/fraudulent/",
   },
+  bank_stmt: {
+    label: "Bank Statement — Fraudulent (demo)",
+    vertical: "specialty_mortgage_bank_statement",
+    metadata: {
+      business_name: "Apex Design Studio LLC",
+      employer: "Apex Design Studio LLC",
+      stated_employer: "Apex Design Studio LLC",
+      address: "410 Commerce Blvd Suite 12 Austin TX",
+    },
+    hint: "Upload files from data/fixtures/specialty_mortgage/fraudulent/",
+  },
 };
 
 export function NewCase() {
