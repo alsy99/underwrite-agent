@@ -1,0 +1,74 @@
+{
+  "acme consulting llc": {
+    "entity_name": "Acme Consulting LLC",
+    "domain": "acmeconsulting.example",
+    "site_live": true,
+    "registrar": "Example Registrar",
+    "created": "2019-04-01",
+    "rdap_status": ["active"],
+    "https": true
+  },
+  "beta industries inc": {
+    "entity_name": "Beta Industries Inc",
+    "domain": "betaindustries.example",
+    "site_live": true,
+    "registrar": "Example Registrar",
+    "created": "2015-09-10",
+    "rdap_status": ["active"],
+    "https": true
+  },
+  "apex design studio llc": {
+    "entity_name": "Apex Design Studio LLC",
+    "domain": "apexdesign.example",
+    "site_live": true,
+    "registrar": "Example Registrar",
+    "created": "2021-02-01",
+    "rdap_status": ["active"],
+    "https": true
+  },
+  "nova creative group llc": {
+    "entity_name": "Nova Creative Group LLC",
+    "domain": "novacreative.example",
+    "site_live": false,
+    "registrar": "PrivacyProtect",
+    "created": "2025-12-01",
+    "rdap_status": ["clientHold"],
+    "https": false
+  },
+  "sunrise bakery llc": {
+    "entity_name": "Sunrise Bakery LLC",
+    "domain": "sunrisebakery.example",
+    "site_live": true,
+    "registrar": "Example Registrar",
+    "created": "2012-05-01",
+    "rdap_status": ["active"],
+    "https": true
+  },
+  "cascade analytics llc": {
+    "entity_name": "Cascade Analytics LLC",
+    "domain": "cascadeanalytics.example",
+    "site_live": true,
+    "registrar": "Example Registrar",
+    "created": "2019-07-01",
+    "rdap_status": ["active"],
+    "https": true
+  },
+  "shell holdings llc": {
+    "entity_name": "Shell Holdings LLC",
+    "domain": "shellholdings-nv.example",
+    "site_live": false,
+    "registrar": "unknown",
+    "created": null,
+    "rdap_status": [],
+    "https": false
+  },
+  "oak plaza holdings llc": {
+    "entity_name": "Oak Plaza Holdings LLC",
+    "domain": "oakplazaholdings.example",
+    "site_live": true,
+    "registrar": "Example Registrar",
+    "created": "2018-03-01",
+    "rdap_status": ["active"],
+    "https": true
+  }
+}

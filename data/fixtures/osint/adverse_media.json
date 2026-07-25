@@ -1,0 +1,53 @@
+{
+  "acme consulting llc": {
+    "articles": []
+  },
+  "beta industries inc": {
+    "articles": [
+      {
+        "title": "Beta Industries faces workplace safety inquiry",
+        "source": "fixture_news",
+        "published": "2025-11-02",
+        "severity": "medium",
+        "url": "https://example.com/news/beta-safety",
+        "summary": "State regulators opened an inquiry into workplace safety practices."
+      }
+    ]
+  },
+  "apex design studio llc": {
+    "articles": []
+  },
+  "nova creative group llc": {
+    "articles": [
+      {
+        "title": "Nova Creative Group named in consumer complaint cluster",
+        "source": "fixture_news",
+        "published": "2026-01-14",
+        "severity": "medium",
+        "url": "https://example.com/news/nova-complaints",
+        "summary": "Multiple unpaid-invoice complaints filed against Nova Creative Group."
+      }
+    ]
+  },
+  "sunrise bakery llc": {
+    "articles": []
+  },
+  "cascade analytics llc": {
+    "articles": []
+  },
+  "shell holdings llc": {
+    "articles": [
+      {
+        "title": "Shell Holdings linked to rapid entity churn pattern",
+        "source": "fixture_news",
+        "published": "2025-12-20",
+        "severity": "high",
+        "url": "https://example.com/news/shell-churn",
+        "summary": "Investigative report flags Shell Holdings among short-lived Nevada LLCs."
+      }
+    ]
+  },
+  "oak plaza holdings llc": {
+    "articles": []
+  }
+}

@@ -5,9 +5,11 @@ from packages.schemas.case import (
     CaseStatus,
     Citation,
     Contradiction,
+    EntityProfile,
     Finding,
     InvestigationStep,
     LoanVertical,
+    OsintSignal,
     PolicyFinding,
     RecommendedAction,
 )
@@ -19,9 +21,11 @@ __all__ = [
     "CaseStatus",
     "Citation",
     "Contradiction",
+    "EntityProfile",
     "Finding",
     "InvestigationStep",
     "LoanVertical",
+    "OsintSignal",
     "PolicyFinding",
     "RecommendedAction",
 ]

@@ -1,4 +1,3 @@
-import json
 from typing import Any
 
 import httpx
@@ -9,6 +8,8 @@ from packages.config import get_settings
 from packages.cross_check.engine import CrossCheckEngine
 from packages.db.models import ChunkRecord
 from packages.llm.embeddings import get_embedding_service
+from packages.osint.profile import ProfileAnalyzer
+from packages.osint.providers.router import OsintRouter
 from packages.policy_rag.service import PolicyRAGService
 from packages.schemas.case import LoanVertical
 
@@ -30,7 +31,13 @@ class ToolRegistry:
         self.policy_rag = PolicyRAGService(session)
         self.embeddings = get_embedding_service()
         self.settings = get_settings()
+        self.osint = OsintRouter()
+        self.profiler = ProfileAnalyzer()
         self._geo_cache: dict[str, dict] = {}
+        self._tool_results: list[dict[str, Any]] = []
+
+    def record_tool_result(self, tool: str, args: dict, result: dict) -> None:
+        self._tool_results.append({"tool": tool, "args": args, "result": result})
 
     async def search_documents(self, query: str, top_k: int = 5) -> list[dict]:
         result = await self.session.execute(
@@ -68,73 +75,36 @@ class ToolRegistry:
         return [r.model_dump() for r in results]
 
     async def lookup_business_registry(self, entity_name: str, ein: str = "") -> dict:
-        """Stub — fixture responses for demo."""
-        fixtures = {
-            "Sunrise Bakery LLC": {
-                "status": "active",
-                "registered_state": "OR",
-                "incorporation_date": "2012-04-01",
-                "registered_agent": "Northwest Registered Agent",
-                "ein_match": True,
-            },
-            "Acme Consulting LLC": {
-                "status": "active",
-                "registered_state": "DE",
-                "incorporation_date": "2019-03-12",
-                "registered_agent": "Corporation Service Company",
-                "ein_match": True,
-            },
-            "Beta Industries Inc": {
-                "status": "active",
-                "registered_state": "CA",
-                "incorporation_date": "2015-08-01",
-                "registered_agent": "CT Corporation",
-                "ein_match": True,
-            },
-            "Apex Design Studio LLC": {
-                "status": "active",
-                "registered_state": "TX",
-                "incorporation_date": "2021-01-15",
-                "registered_agent": "Texas Registered Agent LLC",
-                "ein_match": True,
-            },
-            "Cascade Analytics LLC": {
-                "status": "active",
-                "registered_state": "OR",
-                "incorporation_date": "2019-06-01",
-                "registered_agent": "Northwest Registered Agent",
-                "ein_match": True,
-            },
-        }
-        for name, data in fixtures.items():
-            if name.lower() in entity_name.lower() or entity_name.lower() in name.lower():
-                return {"entity_name": name, "source": "stub_registry", **data}
-        return {
-            "entity_name": entity_name,
-            "source": "stub_registry",
-            "status": "not_found",
-            "note": "No registry match in stub dataset",
-        }
+        raw = await self.osint.lookup_registry(entity_name, ein)
+        return self.osint.unwrap(raw)
 
     async def verify_employer_osint(
         self, employer: str, profile_url: str = ""
     ) -> dict:
-        """Stub LinkedIn-style verification."""
-        stated = self.metadata.get("stated_employer", employer)
-        match = stated.lower() in employer.lower() or employer.lower() in stated.lower()
-        if "Beta" in employer and "Acme" in stated:
-            match = False
-        if "Nova" in employer and "Apex" in stated:
-            match = False
-        return {
-            "employer": employer,
-            "stated_employer": stated,
-            "profile_url": profile_url or "stub://linkedin",
-            "match": match,
-            "confidence": 0.85 if match else 0.2,
-            "source": "stub_osint",
-            "note": "MVP stub — production requires ToS-compliant provider",
-        }
+        stated = self.metadata.get("stated_employer") or self.metadata.get("employer") or employer
+        raw = await self.osint.verify_employer(employer, stated, profile_url)
+        return self.osint.unwrap(raw)
+
+    async def verify_web_presence(self, entity_name: str = "", domain: str = "") -> dict:
+        name = entity_name or self.metadata.get("business_name") or ""
+        dom = domain or self.metadata.get("domain") or ""
+        raw = await self.osint.web_presence(name, dom)
+        return self.osint.unwrap(raw)
+
+    async def check_sanctions(self, name: str = "") -> dict:
+        target = name or self.metadata.get("business_name") or self.metadata.get("applicant_name") or ""
+        raw = await self.osint.check_sanctions(target)
+        return self.osint.unwrap(raw)
+
+    async def search_adverse_media(self, entity_name: str = "") -> dict:
+        name = entity_name or self.metadata.get("business_name") or ""
+        raw = await self.osint.adverse_media(name)
+        return self.osint.unwrap(raw)
+
+    async def lookup_sec_filings(self, entity_name: str = "") -> dict:
+        name = entity_name or self.metadata.get("business_name") or ""
+        raw = await self.osint.sec_filings(name)
+        return self.osint.unwrap(raw)
 
     async def geocode_address(self, address: str) -> dict:
         if address in self._geo_cache:
@@ -153,6 +123,7 @@ class ToolRegistry:
                         "lon": hit.get("lon"),
                         "display_name": hit.get("display_name"),
                         "source": "nominatim",
+                        "mode": "live",
                     }
                     self._geo_cache[address] = result
                     return result
@@ -164,26 +135,55 @@ class ToolRegistry:
             "lon": None,
             "display_name": address,
             "source": "fallback",
+            "mode": "fallback",
         }
         self._geo_cache[address] = result
         return result
 
     async def address_risk_signals(self, address: str, business_type: str = "") -> dict:
+        raw = await self.osint.address_signals(address)
+        data = self.osint.unwrap(raw)
         geo = await self.geocode_address(address)
-        lower = address.lower() + " " + geo.get("display_name", "").lower()
-        signals = []
-        if "ups" in lower or "ups store" in lower:
+        lower = address.lower() + " " + str(geo.get("display_name", "")).lower()
+        signals = list(data.get("signals") or [])
+        if "ups" in lower and "virtual_office_ups_store" not in signals:
             signals.append("virtual_office_ups_store")
-        if "registered agent" in lower or "c/o" in lower:
+        if ("registered agent" in lower or "c/o" in lower) and "registered_agent_address" not in signals:
             signals.append("registered_agent_address")
         if "suite" in lower and business_type in ("retail", "manufacturing"):
-            signals.append("suite_mismatch_heavy_industry")
-        risk = "high" if signals else "low"
+            if "suite_mismatch_heavy_industry" not in signals:
+                signals.append("suite_mismatch_heavy_industry")
+        risk = data.get("risk_level") or ("high" if signals else "low")
+        if signals and risk == "low":
+            risk = "high" if any(
+                s in signals
+                for s in (
+                    "virtual_office_ups_store",
+                    "registered_agent_address",
+                    "mail_drop",
+                    "po_box",
+                )
+            ) else "medium"
         return {
             "address": address,
             "risk_level": risk,
             "signals": signals,
             "geocode": geo,
+            "virtual_office": bool(data.get("virtual_office"))
+            or "virtual_office_ups_store" in signals,
+            "source": data.get("source"),
+            "mode": data.get("mode"),
+            "notes": data.get("notes"),
+        }
+
+    async def build_entity_profile(self, tool_results: list[dict] | None = None) -> dict:
+        results = tool_results if tool_results is not None else self._tool_results
+        profiles = self.profiler.build_profiles(self.metadata, results)
+        return {
+            "profiles": [p.model_dump(mode="json") for p in profiles],
+            "count": len(profiles),
+            "source": "profile_analyzer",
+            "mode": self.osint.mode,
         }
 
     async def query_policy_rag(self, context: str) -> list[dict]:
@@ -194,23 +194,39 @@ class ToolRegistry:
 
     async def execute(self, tool: str, args: dict[str, Any], document_bundle: str) -> dict:
         if tool == "search_documents":
-            return {"results": await self.search_documents(args.get("query", ""))}
-        if tool == "cross_check_narratives":
-            return {"contradictions": await self.cross_check_narratives(document_bundle)}
-        if tool == "lookup_business_registry":
-            return await self.lookup_business_registry(
+            out = {"results": await self.search_documents(args.get("query", ""))}
+        elif tool == "cross_check_narratives":
+            out = {"contradictions": await self.cross_check_narratives(document_bundle)}
+        elif tool == "lookup_business_registry":
+            out = await self.lookup_business_registry(
                 args.get("entity_name", ""), args.get("ein", "")
             )
-        if tool == "verify_employer_osint":
-            return await self.verify_employer_osint(
+        elif tool == "verify_employer_osint":
+            out = await self.verify_employer_osint(
                 args.get("employer", ""), args.get("profile_url", "")
             )
-        if tool == "geocode_address":
-            return await self.geocode_address(args.get("address", ""))
-        if tool == "address_risk_signals":
-            return await self.address_risk_signals(
+        elif tool == "verify_web_presence":
+            out = await self.verify_web_presence(
+                args.get("entity_name", ""), args.get("domain", "")
+            )
+        elif tool == "check_sanctions":
+            out = await self.check_sanctions(args.get("name", ""))
+        elif tool == "search_adverse_media":
+            out = await self.search_adverse_media(args.get("entity_name", ""))
+        elif tool == "lookup_sec_filings":
+            out = await self.lookup_sec_filings(args.get("entity_name", ""))
+        elif tool == "geocode_address":
+            out = await self.geocode_address(args.get("address", ""))
+        elif tool == "address_risk_signals":
+            out = await self.address_risk_signals(
                 args.get("address", ""), args.get("business_type", "")
             )
-        if tool == "query_policy_rag":
-            return {"findings": await self.query_policy_rag(document_bundle)}
-        return {"error": f"unknown tool {tool}"}
+        elif tool == "build_entity_profile":
+            out = await self.build_entity_profile()
+        elif tool == "query_policy_rag":
+            out = {"findings": await self.query_policy_rag(document_bundle)}
+        else:
+            out = {"error": f"unknown tool {tool}"}
+        if tool != "build_entity_profile" and "error" not in out:
+            self.record_tool_result(tool, args, out)
+        return out

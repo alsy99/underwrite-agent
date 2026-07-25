@@ -52,6 +52,14 @@ export function severityColor(severity: string): string {
   return "text-slate-600 bg-slate-100";
 }
 
+export function profileStatusColor(status: string): string {
+  const s = status.toLowerCase();
+  if (s === "corroborated") return "bg-emerald-100 text-emerald-800";
+  if (s === "flagged" || s === "mismatch") return "bg-red-100 text-red-800";
+  if (s === "partial") return "bg-amber-100 text-amber-800";
+  return "bg-slate-100 text-slate-700";
+}
+
 export function truncateId(id: string): string {
   return id.slice(0, 8) + "…";
 }

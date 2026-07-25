@@ -1,0 +1,90 @@
+{
+  "sunrise bakery llc": {
+    "entity_name": "Sunrise Bakery LLC",
+    "status": "active",
+    "registered_state": "OR",
+    "incorporation_date": "2012-04-01",
+    "registered_agent": "Northwest Registered Agent",
+    "ein_match": true,
+    "officers": ["Maria Chen"],
+    "jurisdiction_code": "us_or",
+    "company_number": "OR-20120401001"
+  },
+  "acme consulting llc": {
+    "entity_name": "Acme Consulting LLC",
+    "status": "active",
+    "registered_state": "DE",
+    "incorporation_date": "2019-03-12",
+    "registered_agent": "Corporation Service Company",
+    "ein_match": true,
+    "officers": ["John Smith"],
+    "jurisdiction_code": "us_de",
+    "company_number": "DE-20190312088"
+  },
+  "beta industries inc": {
+    "entity_name": "Beta Industries Inc",
+    "status": "active",
+    "registered_state": "CA",
+    "incorporation_date": "2015-08-01",
+    "registered_agent": "CT Corporation",
+    "ein_match": true,
+    "officers": ["Alex Rivera"],
+    "jurisdiction_code": "us_ca",
+    "company_number": "CA-20150801442"
+  },
+  "apex design studio llc": {
+    "entity_name": "Apex Design Studio LLC",
+    "status": "active",
+    "registered_state": "TX",
+    "incorporation_date": "2021-01-15",
+    "registered_agent": "Texas Registered Agent LLC",
+    "ein_match": true,
+    "officers": ["Jordan Lee"],
+    "jurisdiction_code": "us_tx",
+    "company_number": "TX-20210115821"
+  },
+  "cascade analytics llc": {
+    "entity_name": "Cascade Analytics LLC",
+    "status": "active",
+    "registered_state": "OR",
+    "incorporation_date": "2019-06-01",
+    "registered_agent": "Northwest Registered Agent",
+    "ein_match": true,
+    "officers": ["Sam Patel"],
+    "jurisdiction_code": "us_or",
+    "company_number": "OR-20190601055"
+  },
+  "nova creative group llc": {
+    "entity_name": "Nova Creative Group LLC",
+    "status": "active",
+    "registered_state": "TX",
+    "incorporation_date": "2022-09-01",
+    "registered_agent": "Capitol Corporate Services",
+    "ein_match": false,
+    "officers": [],
+    "jurisdiction_code": "us_tx",
+    "company_number": "TX-20220901991"
+  },
+  "oak plaza holdings llc": {
+    "entity_name": "Oak Plaza Holdings LLC",
+    "status": "active",
+    "registered_state": "OR",
+    "incorporation_date": "2018-02-14",
+    "registered_agent": "Northwest Registered Agent",
+    "ein_match": true,
+    "officers": ["Jones LLC", "Rivera Investments"],
+    "jurisdiction_code": "us_or",
+    "company_number": "OR-20180214777"
+  },
+  "shell holdings llc": {
+    "entity_name": "Shell Holdings LLC",
+    "status": "inactive",
+    "registered_state": "NV",
+    "incorporation_date": "2024-11-01",
+    "registered_agent": "Registered Agents Inc",
+    "ein_match": false,
+    "officers": [],
+    "jurisdiction_code": "us_nv",
+    "company_number": "NV-20241101002"
+  }
+}

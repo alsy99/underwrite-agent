@@ -16,22 +16,31 @@ from packages.cross_check.engine import CrossCheckEngine
 from packages.db.models import CaseRecord
 from packages.documents.pipeline import DocumentPipeline
 from packages.llm.client import LLMClient
+from packages.osint.profile import ProfileAnalyzer
 from packages.policy_rag.service import PolicyRAGService
-from packages.schemas.case import CaseFile, LoanVertical
+from packages.schemas.case import CaseFile, EntityProfile, LoanVertical
 
 
 # Tools the agent may schedule after cross-check / policy RAG (not re-run those).
 INVESTIGATION_TOOLS = {
     "lookup_business_registry",
     "verify_employer_osint",
+    "verify_web_presence",
+    "check_sanctions",
+    "search_adverse_media",
+    "lookup_sec_filings",
     "geocode_address",
     "address_risk_signals",
     "search_documents",
+    "build_entity_profile",
 }
 
 DEFAULT_TOOL_PLAN: list[tuple[str, dict[str, Any]]] = [
-    ("lookup_business_registry", {"entity_name": "{business_name}"}),
+    ("lookup_business_registry", {"entity_name": "{business_name}", "ein": "{ein}"}),
     ("verify_employer_osint", {"employer": "{employer}"}),
+    ("verify_web_presence", {"entity_name": "{business_name}", "domain": "{domain}"}),
+    ("check_sanctions", {"name": "{business_name}"}),
+    ("search_adverse_media", {"entity_name": "{business_name}"}),
     ("geocode_address", {"address": "{address}"}),
     ("address_risk_signals", {"address": "{address}"}),
 ]
@@ -144,6 +153,8 @@ class InvestigationRunner:
                 break
             if tool_name not in INVESTIGATION_TOOLS:
                 continue
+            if tool_name == "build_entity_profile":
+                continue  # always fused after loop
             resolved_args = self._resolve_args(args, metadata)
             result = await self.tools.execute(tool_name, resolved_args, state["document_bundle"])
             steps_run += 1
@@ -157,6 +168,35 @@ class InvestigationRunner:
                 prompt_version="tool_v1",
             )
             self._absorb_tool_results(tool_name, result)
+
+        # Always fuse EntityProfile(s) from tool results + metadata
+        profiles = ProfileAnalyzer().build_profiles(metadata, results)
+        self.builder.set_entity_profiles(profiles)
+        self.builder.log_step(
+            "build_entity_profile",
+            f"Built {len(profiles)} entity profile(s)",
+        )
+        await self.audit.log(
+            actor="agent",
+            action="tool_call",
+            inputs={"tool": "build_entity_profile"},
+            outputs={
+                "profiles": [p.model_dump(mode="json") for p in profiles],
+                "count": len(profiles),
+            },
+            prompt_version="tool_v1",
+        )
+        results.append(
+            {
+                "tool": "build_entity_profile",
+                "args": {},
+                "result": {
+                    "profiles": [p.model_dump(mode="json") for p in profiles],
+                    "count": len(profiles),
+                },
+            }
+        )
+        steps_run += 1
 
         return {**state, "tool_results": results, "step_count": steps_run}
 
@@ -188,9 +228,12 @@ class InvestigationRunner:
             "Given case metadata and prior findings, choose which tools to run next. "
             "Output JSON only: "
             '{"steps":[{"tool":"lookup_business_registry|verify_employer_osint|'
+            "verify_web_presence|check_sanctions|search_adverse_media|lookup_sec_filings|"
             'geocode_address|address_risk_signals|search_documents","args":{...}}]} '
-            "Do not include cross_check_narratives or query_policy_rag — already done. "
-            "Prefer 2-5 high-value tools. Skip tools when required args are empty."
+            "Do not include cross_check_narratives, query_policy_rag, or build_entity_profile "
+            "— those are handled separately. "
+            "Prefer 4-8 high-value tools covering registry, employer, sanctions, address, and web. "
+            "Skip tools when required args are empty."
         )
         user = (
             f"Vertical: {state.get('vertical')}\n"
@@ -205,13 +248,16 @@ class InvestigationRunner:
             if not isinstance(step, dict):
                 continue
             tool = step.get("tool")
-            if tool not in INVESTIGATION_TOOLS:
+            if tool not in INVESTIGATION_TOOLS or tool == "build_entity_profile":
                 continue
             args = step.get("args") if isinstance(step.get("args"), dict) else {}
             plan.append((tool, args))
 
         if not plan:
             plan = list(DEFAULT_TOOL_PLAN)
+
+        # Ensure core OSINT coverage when metadata present
+        plan = self._ensure_core_osint(plan, metadata)
 
         # Drop tools that would run with empty required args.
         filtered: list[tuple[str, dict[str, Any]]] = []
@@ -233,22 +279,70 @@ class InvestigationRunner:
                 continue
             if tool == "search_documents" and not resolved.get("query"):
                 continue
+            if tool in (
+                "verify_web_presence",
+                "search_adverse_media",
+                "lookup_sec_filings",
+            ) and not (
+                resolved.get("entity_name") or metadata.get("business_name")
+            ):
+                continue
+            if tool == "check_sanctions" and not (
+                resolved.get("name")
+                or metadata.get("business_name")
+                or metadata.get("applicant_name")
+            ):
+                continue
             # Fill placeholder defaults from metadata when LLM omitted args.
             if tool == "lookup_business_registry" and not resolved.get("entity_name"):
-                args = {**args, "entity_name": "{business_name}"}
+                args = {**args, "entity_name": "{business_name}", "ein": "{ein}"}
             if tool == "verify_employer_osint" and not resolved.get("employer"):
                 args = {**args, "employer": "{employer}"}
             if tool in ("geocode_address", "address_risk_signals") and not resolved.get(
                 "address"
             ):
                 args = {**args, "address": "{address}"}
+            if tool == "verify_web_presence" and not resolved.get("entity_name"):
+                args = {**args, "entity_name": "{business_name}", "domain": "{domain}"}
+            if tool == "check_sanctions" and not resolved.get("name"):
+                args = {**args, "name": "{business_name}"}
+            if tool in ("search_adverse_media", "lookup_sec_filings") and not resolved.get(
+                "entity_name"
+            ):
+                args = {**args, "entity_name": "{business_name}"}
             filtered.append((tool, args))
 
         if metadata.get("search_queries"):
             for q in metadata["search_queries"][:2]:
                 filtered.insert(0, ("search_documents", {"query": q}))
 
-        return filtered[: self.settings.max_agent_steps]
+        # Also screen principal when present
+        if metadata.get("applicant_name"):
+            filtered.append(("check_sanctions", {"name": "{applicant_name}"}))
+
+        # Deduplicate by tool+resolved key arg
+        seen: set[str] = set()
+        unique: list[tuple[str, dict[str, Any]]] = []
+        for tool, args in filtered:
+            resolved = self._resolve_args(args, metadata)
+            key = f"{tool}:{resolved.get('entity_name') or resolved.get('name') or resolved.get('employer') or resolved.get('address') or resolved.get('query')}"
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append((tool, args))
+
+        return unique[: max(self.settings.max_agent_steps - 1, 1)]
+
+    def _ensure_core_osint(
+        self, plan: list[tuple[str, dict[str, Any]]], metadata: dict[str, Any]
+    ) -> list[tuple[str, dict[str, Any]]]:
+        have = {t for t, _ in plan}
+        extras: list[tuple[str, dict[str, Any]]] = []
+        for tool, args in DEFAULT_TOOL_PLAN:
+            if tool in have:
+                continue
+            extras.append((tool, args))
+        return plan + extras
 
     def _resolve_args(self, args: dict, metadata: dict) -> dict:
         resolved = {}
@@ -264,7 +358,8 @@ class InvestigationRunner:
         enriched = dict(metadata)
         if not enriched.get("business_name"):
             m = re.search(
-                r"(?:business(?:\s+name)?|applicant|borrower|entity)\s*[:\-]\s*([A-Za-z0-9 &.,'\-]+LLC|[A-Za-z0-9 &.,'\-]+Inc\.?)",
+                r"(?:business(?:\s+(?:legal\s+)?name)?|applicant|borrower|entity)\s*[:\-]\s*"
+                r"([A-Za-z0-9 &.,'\-]+(?:LLC|Inc\.?|LP|Corp\.?)?)",
                 bundle,
                 re.IGNORECASE,
             )
@@ -272,7 +367,8 @@ class InvestigationRunner:
                 enriched["business_name"] = m.group(1).strip()
         if not enriched.get("employer") and not enriched.get("stated_employer"):
             m = re.search(
-                r"(?:employer|employed by|works at)\s*[:\-]?\s*([A-Za-z0-9 &.,'\-]+(?:LLC|Inc\.?|Corp\.?)?)",
+                r"(?:employer|employed by|works at|stated employer[^:\n]*)\s*[:\-]?\s*"
+                r"([A-Za-z0-9 &.,'\-]+(?:LLC|Inc\.?|Corp\.?)?)",
                 bundle,
                 re.IGNORECASE,
             )
@@ -281,7 +377,7 @@ class InvestigationRunner:
                 enriched.setdefault("stated_employer", enriched["employer"])
         if not enriched.get("address"):
             m = re.search(
-                r"(?:address|located at|property)\s*[:\-]\s*([^\n]{10,120})",
+                r"(?:address|located at|property|business address)\s*[:\-]\s*([^\n]{10,120})",
                 bundle,
                 re.IGNORECASE,
             )
@@ -289,41 +385,79 @@ class InvestigationRunner:
                 enriched["address"] = m.group(1).strip().rstrip(".")
         if enriched.get("employer") and not enriched.get("stated_employer"):
             enriched["stated_employer"] = enriched["employer"]
+
+        if not enriched.get("ein"):
+            m = re.search(r"\bEIN\s*[:#]?\s*(\d{2}-\d{7})\b", bundle, re.IGNORECASE)
+            if m:
+                enriched["ein"] = m.group(1)
+
+        if not enriched.get("applicant_name"):
+            m = re.search(
+                r"(?:applicant(?:\s+name)?|borrower)\s*[:\-]\s*([A-Za-z][A-Za-z .'\-]{2,60})",
+                bundle,
+                re.IGNORECASE,
+            )
+            if m:
+                name = m.group(1).strip().rstrip(".")
+                # Avoid capturing "Business Legal Name" style leftovers
+                if "llc" not in name.lower() and "inc" not in name.lower():
+                    enriched["applicant_name"] = name
+
+        if not enriched.get("domain"):
+            m = re.search(
+                r"(?:website|domain|url)\s*[:\-]\s*(https?://)?([a-z0-9.-]+\.[a-z]{2,})",
+                bundle,
+                re.IGNORECASE,
+            )
+            if m:
+                enriched["domain"] = m.group(2).lower()
+
+        # Capture employment letter employer when it differs (fraud signal seed)
+        emp_letter = re.search(
+            r"(?:employed full-time by|employed by)\s+([A-Za-z0-9 &.,'\-]+(?:LLC|Inc\.?))",
+            bundle,
+            re.IGNORECASE,
+        )
+        if emp_letter:
+            letter_emp = emp_letter.group(1).strip()
+            enriched.setdefault("employer_from_letter", letter_emp)
+            # Prefer letter employer as verification target when it conflicts with stated
+            stated = enriched.get("stated_employer") or enriched.get("employer")
+            if stated and letter_emp.lower() not in stated.lower() and stated.lower() not in letter_emp.lower():
+                enriched["employer"] = letter_emp
+
         return enriched
 
     def _absorb_tool_results(self, tool: str, result: dict) -> None:
-        if tool == "lookup_business_registry" and result.get("status") == "not_found":
-            self.builder.add_finding(
-                "medium",
-                "Entity registry lookup",
-                f"Could not verify entity: {result.get('entity_name')}",
-            )
-        if tool == "verify_employer_osint" and not result.get("match"):
-            self.builder.add_finding(
-                "high",
-                "Employer OSINT mismatch",
-                f"Stated employer does not match verification target ({result.get('employer')})",
-            )
+        # Immediate open questions; EntityProfile fusion owns structured OSINT findings.
         if tool == "address_risk_signals" and result.get("risk_level") == "high":
-            self.builder.add_finding(
-                "medium",
-                "Address risk signals",
-                f"Signals: {', '.join(result.get('signals', []))}",
-            )
             self.builder.open_questions.append(
                 "Confirm business operates at stated address"
+            )
+        if tool == "check_sanctions" and result.get("status") in ("hit", "possible_match"):
+            self.builder.open_questions.append(
+                f"Complete sanctions due diligence for {result.get('name')}"
+            )
+        if tool == "verify_employer_osint" and not result.get("match"):
+            self.builder.open_questions.append(
+                "Reconcile employer name across application and employment letter"
             )
 
     async def _synthesize_brief(self, vertical: str) -> str:
         system = (
             "Write a 1-page executive summary for a human underwriter based ONLY on "
-            "the structured findings provided. Be concise and factual."
+            "the structured findings provided. Be concise and factual. "
+            "Include OSINT entity profile status when present."
         )
         facts = {
             "vertical": vertical,
             "contradictions": [c.model_dump() for c in self.builder.contradictions],
             "policy_findings": [p.model_dump() for p in self.builder.policy_findings],
             "findings": [f.model_dump() for f in self.builder.findings],
+            "entity_profiles": [
+                p.model_dump(mode="json") if isinstance(p, EntityProfile) else p
+                for p in self.builder.entity_profiles
+            ],
             "recommended_action": self.builder.recommend_action().value,
         }
         user = f"Structured facts:\n{facts}"
@@ -331,14 +465,22 @@ class InvestigationRunner:
         if not text or len(text) < 50:
             n_contra = len(self.builder.contradictions)
             n_policy = len(self.builder.policy_findings)
+            n_profiles = len(self.builder.entity_profiles)
             action = self.builder.recommend_action().value
+            flagged = sum(
+                1
+                for p in self.builder.entity_profiles
+                if p.status in ("flagged", "mismatch")
+            )
             text = (
                 f"Underwriting investigation for {vertical} loan package complete. "
                 f"Detected {n_contra} cross-document contradiction(s) and "
                 f"{n_policy} policy finding(s). "
+                f"OSINT profiling covered {n_profiles} entit(y/ies) "
+                f"({flagged} flagged/mismatch). "
                 f"Recommended action: {action}. "
             )
             if n_contra == 0:
                 text += "No contradictions detected across configured narrative pairs. "
-            text += "See structured findings and audit timeline for evidence."
+            text += "See structured findings, entity profiles, and audit timeline for evidence."
         return text

@@ -4,6 +4,7 @@ from packages.schemas.case import (
     CaseFile,
     Citation,
     Contradiction,
+    EntityProfile,
     Finding,
     InvestigationStep,
     PolicyFinding,
@@ -18,6 +19,7 @@ class CaseFileBuilder:
         self.policy_findings: list[PolicyFinding] = []
         self.timeline: list[InvestigationStep] = []
         self.open_questions: list[str] = []
+        self.entity_profiles: list[EntityProfile] = []
         self._step = 0
 
     def add_contradictions(self, items: list[Contradiction]) -> None:
@@ -68,6 +70,30 @@ class CaseFileBuilder:
             )
         )
 
+    def set_entity_profiles(self, profiles: list[EntityProfile]) -> None:
+        self.entity_profiles = list(profiles)
+        for profile in profiles:
+            for signal in profile.signals:
+                if signal.severity not in ("high", "medium"):
+                    continue
+                self.add_finding(
+                    signal.severity,
+                    f"OSINT: {profile.entity_type} — {signal.signal_type}",
+                    f"{profile.entity_name}: {signal.summary}",
+                )
+            if profile.status == "flagged":
+                self.open_questions.append(
+                    f"Escalate OSINT review for {profile.entity_type} '{profile.entity_name}'"
+                )
+            if profile.status == "mismatch":
+                self.open_questions.append(
+                    f"Reconcile identity mismatch for '{profile.entity_name}'"
+                )
+            if profile.status == "unverified" and profile.entity_type == "business":
+                self.open_questions.append(
+                    f"Obtain primary-source verification for business '{profile.entity_name}'"
+                )
+
     def log_step(self, tool: str, summary: str) -> None:
         self._step += 1
         self.timeline.append(
@@ -83,17 +109,26 @@ class CaseFileBuilder:
         high_contras = sum(1 for c in self.contradictions if c.severity == "high")
         policy_fails = sum(1 for p in self.policy_findings if p.status == "fail")
         high_findings = sum(1 for f in self.findings if f.severity == "high")
+        osint_flagged = sum(1 for p in self.entity_profiles if p.status in ("flagged", "mismatch"))
+        osint_high = sum(
+            1
+            for p in self.entity_profiles
+            for s in p.signals
+            if s.severity == "high"
+        )
 
         # Advisory MVP: auto-decline only when multiple independent high-severity signals agree.
         if high_contras >= 2 and (policy_fails >= 1 or high_findings >= 2):
             return RecommendedAction.DECLINE
+        if osint_high >= 2 and (high_contras >= 1 or policy_fails >= 1):
+            return RecommendedAction.DECLINE
 
-        if high_contras >= 1 or policy_fails >= 1:
+        if high_contras >= 1 or policy_fails >= 1 or osint_flagged >= 1:
             return RecommendedAction.REVIEW
         if any(p.status == "review" for p in self.policy_findings):
             return RecommendedAction.REVIEW
         if not self.contradictions and self.policy_findings:
-            if all(p.status == "pass" for p in self.policy_findings):
+            if all(p.status == "pass" for p in self.policy_findings) and not osint_flagged:
                 return RecommendedAction.APPROVE
         if not self.contradictions and not any(
             f.severity in ("high", "medium") for f in self.findings
@@ -113,6 +148,14 @@ class CaseFileBuilder:
                 "Escalate to senior underwriter before final adverse action",
                 "Request borrower letter of explanation for material contradictions",
             ]
+        # Dedupe open questions while preserving order
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for q in self.open_questions:
+            if q not in seen:
+                seen.add(q)
+                deduped.append(q)
+        self.open_questions = deduped
         return CaseFile(
             executive_summary=executive_summary,
             findings=self.findings,
@@ -121,4 +164,5 @@ class CaseFileBuilder:
             investigation_timeline=self.timeline,
             recommended_action=action,
             open_questions=self.open_questions,
+            entity_profiles=self.entity_profiles,
         )

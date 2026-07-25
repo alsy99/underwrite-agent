@@ -7,12 +7,18 @@ import {
   Clock,
   FileText,
   Loader2,
+  Radar,
   Scale,
 } from "lucide-react";
 import { getAudit, getCase } from "../api";
 import { ActionBadge, StatusBadge } from "../components/StatusBadge";
-import { formatDate, formatVertical, severityColor } from "../lib/format";
-import type { AuditEvent, CaseResponse } from "../types";
+import {
+  formatDate,
+  formatVertical,
+  profileStatusColor,
+  severityColor,
+} from "../lib/format";
+import type { AuditEvent, CaseResponse, EntityProfile } from "../types";
 
 export function CaseDetail() {
   const { caseId } = useParams<{ caseId: string }>();
@@ -162,6 +168,20 @@ export function CaseDetail() {
               </section>
             )}
 
+            {(cf.entity_profiles?.length ?? 0) > 0 && (
+              <section className="card p-4 sm:p-6">
+                <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-slate-900">
+                  <Radar className="h-5 w-5 text-brand-600" />
+                  Entity profiles (OSINT)
+                </h2>
+                <ul className="mt-4 space-y-4">
+                  {cf.entity_profiles!.map((p, i) => (
+                    <EntityProfileCard key={`${p.entity_type}-${i}`} profile={p} />
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {cf.findings.length > 0 && (
               <section className="card p-4 sm:p-6">
                 <h2 className="font-display text-lg font-semibold text-slate-900">
@@ -227,6 +247,50 @@ export function CaseDetail() {
         <p className="text-slate-500">No case file payload returned.</p>
       )}
     </div>
+  );
+}
+
+function EntityProfileCard({ profile }: { profile: EntityProfile }) {
+  return (
+    <li className="rounded-lg border border-surface-border p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            {profile.entity_type}
+          </p>
+          <p className="mt-0.5 font-medium text-slate-900">{profile.entity_name}</p>
+        </div>
+        <span className={`badge ${profileStatusColor(profile.status)}`}>
+          {profile.status}
+        </span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
+        <span>
+          Identity {(profile.identity_confidence * 100).toFixed(0)}%
+        </span>
+        <span>Risk {(profile.risk_score * 100).toFixed(0)}%</span>
+        {profile.sources_used.length > 0 && (
+          <span className="truncate">
+            Sources: {profile.sources_used.join(", ")}
+          </span>
+        )}
+      </div>
+      {profile.signals.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {profile.signals.map((s, i) => (
+            <li key={i} className="text-sm text-slate-700">
+              <span className={`badge mr-2 ${severityColor(s.severity)}`}>
+                {s.severity}
+              </span>
+              <span className="font-mono text-xs text-slate-500">
+                {s.signal_type}
+              </span>
+              <span className="ml-2">{s.summary}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 

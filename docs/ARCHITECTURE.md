@@ -12,9 +12,9 @@ flowchart TD
   D --> E[cross_check]
   E --> F[policy_rag]
   F --> G[plan_investigation<br/>LLM tool selection]
-  G --> H[agent_loop<br/>registry · OSINT · geocode · search]
+  G --> H[agent_loop<br/>registry · OSINT suite · geocode · search]
   H --> I[synthesize_brief]
-  I --> J[Case file + audit log]
+  I --> J[Case file + entity profiles + audit]
   J --> K[GET /v1/cases/id]
 ```
 
@@ -25,6 +25,7 @@ flowchart TD
 | API | `apps/api/` | FastAPI case + policy endpoints, API key auth |
 | Worker | `apps/worker/` | ARQ `process_case` + LangGraph graph definition |
 | Investigation | `packages/agent/` | Runner nodes, case file builder, tool registry |
+| OSINT | `packages/osint/` | Hybrid providers, router, EntityProfile analyzer |
 | Cross-check | `packages/cross_check/` | Semantic + rule-based contradiction detection |
 | Policy RAG | `packages/policy_rag/` | Tenant policy ingest/retrieve/evaluate |
 | Documents | `packages/documents/` | Parse, PII redact, classify, chunk |
@@ -48,4 +49,18 @@ flowchart TD
 - `review` — any high-severity contradiction or policy fail/review
 - `decline` — multiple independent high-severity signals (still advisory; humans decide)
 
-OSINT / business-registry tools are **stubs** in v1 for demo determinism.
+## OSINT suite (hybrid)
+
+Investigation tools resolve via `OsintRouter` (`packages/osint/`):
+
+| Tool | Fixture | Live (when configured) |
+|------|---------|------------------------|
+| `lookup_business_registry` | `data/fixtures/osint/registry.json` | OpenCorporates API |
+| `verify_employer_osint` | employers corpus + mismatch pairs | name heuristics |
+| `verify_web_presence` | web.json | RDAP + HTTP probe |
+| `check_sanctions` | sanctions.json | local OFAC SDN path |
+| `search_adverse_media` | adverse_media.json | NewsAPI |
+| `lookup_sec_filings` | sec.json | SEC EDGAR tickers |
+| `geocode_address` / `address_risk_signals` | addresses + heuristics | Nominatim |
+
+After the agent loop, `ProfileAnalyzer` always builds `CaseFile.entity_profiles` for business, employer, principal, and address.

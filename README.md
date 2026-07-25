@@ -5,7 +5,7 @@ AI Underwriting Assistant — **Agentic Fraud Investigation MVP** for complex le
 ## Product pillars
 
 1. **Unstructured cross-checking** — semantic contradictions across leases, VOEs, tax forms, and applications with cited evidence.
-2. **Sherlock agentic workflow** — autonomous investigation building an auditable case file (registry/OSINT stubs, geocoding, address heuristics).
+2. **Sherlock agentic workflow** — autonomous investigation building an auditable case file (hybrid OSINT profiling, registry, geocoding, address heuristics).
 3. **Dynamic policy RAG** — bank policy documents ingested without code deploys; compliance findings at investigation time.
 
 ## Quick start
@@ -140,7 +140,8 @@ Auth: `Authorization: Bearer <API_KEY>` (see `.env`).
 ## Compliance notes
 
 - MVP outputs are **advisory**; human underwriters must review `review` and `decline` recommendations.
-- OSINT tools are **stubs** in v1 — production requires ToS-compliant providers and legal review.
+- OSINT is **hybrid**: deterministic fixture corpus by default (`OSINT_MODE=auto|fixture`), with live adapters when keys are set (`OPENCORPORATES_API_KEY`, `NEWS_API_KEY`, `OFAC_SDN_PATH`). Production use requires ToS-compliant providers and legal review.
+- Case files include `entity_profiles` (business, employer, principal, address) with risk scores and signals.
 - PII is redacted before LLM prompts; raw documents stored in MinIO per tenant prefix.
 
 ## Tests

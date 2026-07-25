@@ -1,28 +1,10 @@
-import pytest
+"""Legacy agent tool tests (compat) + case file recommendation."""
 
-from packages.agent.tools.registry import ToolRegistry
-
-
-@pytest.mark.asyncio
-async def test_registry_stub_osint_mismatch():
-    registry = ToolRegistry.__new__(ToolRegistry)
-    registry.metadata = {"stated_employer": "Acme Consulting LLC"}
-
-    async def verify(employer, profile_url=""):
-        stated = registry.metadata.get("stated_employer", employer)
-        match = stated.lower() in employer.lower()
-        if "Beta" in employer and "Acme" in stated:
-            match = False
-        return {"employer": employer, "match": match}
-
-    result = await verify("Beta Industries Inc")
-    assert result["match"] is False
+from packages.agent.case_file import CaseFileBuilder
+from packages.schemas.case import Contradiction, RecommendedAction
 
 
 def test_case_file_recommend_review_on_high_contradiction():
-    from packages.agent.case_file import CaseFileBuilder
-    from packages.schemas.case import Contradiction, RecommendedAction
-
     builder = CaseFileBuilder()
     builder.add_contradictions(
         [

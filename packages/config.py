@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     max_agent_steps: int = 12
     geocoding_user_agent: str = "underwrite-agent/0.1"
 
+    # OSINT: auto uses live providers when keys present, else fixture corpus
+    osint_mode: str = "auto"  # auto|fixture|live
+    opencorporates_api_key: str = ""
+    news_api_key: str = ""
+    sec_edgar_user_agent: str = "underwrite-agent contact@example.com"
+    ofac_sdn_path: str = ""
+    osint_fixture_dir: str = "data/fixtures/osint"
+
 
 @lru_cache
 def get_settings() -> Settings:

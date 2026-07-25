@@ -1,0 +1,45 @@
+{
+  "acme consulting llc": {
+    "found": false,
+    "cik": null,
+    "ticker": null,
+    "note": "Private company — no EDGAR registrant match"
+  },
+  "beta industries inc": {
+    "found": false,
+    "cik": null,
+    "ticker": null,
+    "note": "Private company — no EDGAR registrant match"
+  },
+  "apex design studio llc": {
+    "found": false,
+    "cik": null,
+    "ticker": null,
+    "note": "Private company — no EDGAR registrant match"
+  },
+  "sunrise bakery llc": {
+    "found": false,
+    "cik": null,
+    "ticker": null,
+    "note": "Private company — no EDGAR registrant match"
+  },
+  "cascade analytics llc": {
+    "found": false,
+    "cik": null,
+    "ticker": null,
+    "note": "Private company — no EDGAR registrant match"
+  },
+  "oak plaza holdings llc": {
+    "found": false,
+    "cik": null,
+    "ticker": null,
+    "note": "Private company — no EDGAR registrant match"
+  },
+  "apple inc": {
+    "found": true,
+    "cik": "0000320193",
+    "ticker": "AAPL",
+    "recent_forms": ["10-K", "10-Q", "8-K"],
+    "note": "Public registrant"
+  }
+}

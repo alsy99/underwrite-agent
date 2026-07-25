@@ -1,0 +1,44 @@
+{
+  "1200 market street, suite 400, wilmington, de 19801": {
+    "address": "1200 Market Street, Suite 400, Wilmington, DE 19801",
+    "signals": ["suite_office"],
+    "risk_level": "low",
+    "virtual_office": false,
+    "notes": "Standard commercial suite"
+  },
+  "500 industrial parkway, austin, tx 78701": {
+    "address": "500 Industrial Parkway, Austin, TX 78701",
+    "signals": [],
+    "risk_level": "low",
+    "virtual_office": false,
+    "notes": "Industrial corridor address"
+  },
+  "410 commerce blvd suite 12 austin tx": {
+    "address": "410 Commerce Blvd Suite 12 Austin TX",
+    "signals": ["suite_office"],
+    "risk_level": "low",
+    "virtual_office": false,
+    "notes": "Small suite — verify occupancy"
+  },
+  "88 main street portland or": {
+    "address": "88 Main Street Portland OR",
+    "signals": [],
+    "risk_level": "low",
+    "virtual_office": false,
+    "notes": "Storefront-style address"
+  },
+  "the ups store 100 mail box lane suite 200 las vegas nv": {
+    "address": "The UPS Store 100 Mail Box Lane Suite 200 Las Vegas NV",
+    "signals": ["virtual_office_ups_store", "mail_drop"],
+    "risk_level": "high",
+    "virtual_office": true,
+    "notes": "Mail drop / virtual office indicator"
+  },
+  "c/o northwest registered agent 5305 river road n salem or": {
+    "address": "c/o Northwest Registered Agent 5305 River Road N Salem OR",
+    "signals": ["registered_agent_address"],
+    "risk_level": "high",
+    "virtual_office": false,
+    "notes": "Registered agent address — not operating location"
+  }
+}

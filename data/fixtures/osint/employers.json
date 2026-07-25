@@ -1,0 +1,59 @@
+{
+  "acme consulting llc": {
+    "employer": "Acme Consulting LLC",
+    "stated_aliases": ["Acme Consulting LLC", "Acme Consulting"],
+    "profile_url": "https://example.com/company/acme-consulting",
+    "web_presence": true,
+    "employee_count_band": "1-10",
+    "industry": "Management Consulting",
+    "match_default": true
+  },
+  "beta industries inc": {
+    "employer": "Beta Industries Inc",
+    "stated_aliases": ["Beta Industries Inc", "Beta Industries"],
+    "profile_url": "https://example.com/company/beta-industries",
+    "web_presence": true,
+    "employee_count_band": "50-200",
+    "industry": "Manufacturing",
+    "match_default": true,
+    "mismatches_with": ["acme consulting llc"]
+  },
+  "apex design studio llc": {
+    "employer": "Apex Design Studio LLC",
+    "stated_aliases": ["Apex Design Studio LLC", "Apex Design"],
+    "profile_url": "https://example.com/company/apex-design",
+    "web_presence": true,
+    "employee_count_band": "1-10",
+    "industry": "Design Services",
+    "match_default": true,
+    "mismatches_with": ["nova creative group llc"]
+  },
+  "nova creative group llc": {
+    "employer": "Nova Creative Group LLC",
+    "stated_aliases": ["Nova Creative Group LLC"],
+    "profile_url": "https://example.com/company/nova-creative",
+    "web_presence": false,
+    "employee_count_band": "unknown",
+    "industry": "Creative Services",
+    "match_default": true,
+    "mismatches_with": ["apex design studio llc"]
+  },
+  "sunrise bakery llc": {
+    "employer": "Sunrise Bakery LLC",
+    "stated_aliases": ["Sunrise Bakery LLC", "Sunrise Bakery"],
+    "profile_url": "https://example.com/company/sunrise-bakery",
+    "web_presence": true,
+    "employee_count_band": "10-50",
+    "industry": "Food Services",
+    "match_default": true
+  },
+  "cascade analytics llc": {
+    "employer": "Cascade Analytics LLC",
+    "stated_aliases": ["Cascade Analytics LLC"],
+    "profile_url": "https://example.com/company/cascade-analytics",
+    "web_presence": true,
+    "employee_count_band": "10-50",
+    "industry": "Data Analytics",
+    "match_default": true
+  }
+}

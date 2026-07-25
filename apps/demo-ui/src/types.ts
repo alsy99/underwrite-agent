@@ -55,6 +55,31 @@ export interface InvestigationStep {
   timestamp: string;
 }
 
+export interface OsintSignal {
+  source: string;
+  signal_type: string;
+  severity: string;
+  summary: string;
+  evidence: Record<string, unknown>;
+  confidence: number;
+}
+
+export interface EntityProfile {
+  entity_name: string;
+  entity_type: string;
+  identity_confidence: number;
+  risk_score: number;
+  status: string;
+  registry?: Record<string, unknown> | null;
+  web_presence?: Record<string, unknown> | null;
+  sanctions?: Record<string, unknown> | null;
+  adverse_media: Record<string, unknown>[];
+  address?: Record<string, unknown> | null;
+  principals: Record<string, unknown>[];
+  signals: OsintSignal[];
+  sources_used: string[];
+}
+
 export interface CaseFile {
   executive_summary: string;
   findings: Finding[];
@@ -63,6 +88,7 @@ export interface CaseFile {
   investigation_timeline: InvestigationStep[];
   recommended_action: RecommendedAction;
   open_questions: string[];
+  entity_profiles?: EntityProfile[];
 }
 
 export interface CaseResponse {

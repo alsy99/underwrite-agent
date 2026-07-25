@@ -62,6 +62,31 @@ class InvestigationStep(BaseModel):
     timestamp: datetime
 
 
+class OsintSignal(BaseModel):
+    source: str
+    signal_type: str
+    severity: str
+    summary: str
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    confidence: float = 0.0
+
+
+class EntityProfile(BaseModel):
+    entity_name: str
+    entity_type: str  # business|principal|employer|address
+    identity_confidence: float = 0.0
+    risk_score: float = 0.0
+    status: str = "unverified"  # corroborated|partial|unverified|mismatch|flagged
+    registry: dict[str, Any] | None = None
+    web_presence: dict[str, Any] | None = None
+    sanctions: dict[str, Any] | None = None
+    adverse_media: list[dict[str, Any]] = Field(default_factory=list)
+    address: dict[str, Any] | None = None
+    principals: list[dict[str, Any]] = Field(default_factory=list)
+    signals: list[OsintSignal] = Field(default_factory=list)
+    sources_used: list[str] = Field(default_factory=list)
+
+
 class CaseFile(BaseModel):
     executive_summary: str
     findings: list[Finding] = Field(default_factory=list)
@@ -70,6 +95,7 @@ class CaseFile(BaseModel):
     investigation_timeline: list[InvestigationStep] = Field(default_factory=list)
     recommended_action: RecommendedAction = RecommendedAction.REVIEW
     open_questions: list[str] = Field(default_factory=list)
+    entity_profiles: list[EntityProfile] = Field(default_factory=list)
 
 
 class CaseCreateRequest(BaseModel):

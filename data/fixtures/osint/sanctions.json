@@ -1,0 +1,32 @@
+{
+  "clear_entities": [
+    "sunrise bakery llc",
+    "acme consulting llc",
+    "beta industries inc",
+    "apex design studio llc",
+    "cascade analytics llc",
+    "nova creative group llc",
+    "oak plaza holdings llc",
+    "john smith",
+    "jordan lee",
+    "maria chen",
+    "sam patel"
+  ],
+  "hits": {
+    "blocked trader syndicate": {
+      "name": "Blocked Trader Syndicate",
+      "list": "SDN",
+      "program": "DEMO",
+      "match_type": "exact",
+      "severity": "high"
+    },
+    "shell holdings llc": {
+      "name": "Shell Holdings LLC",
+      "list": "SDN",
+      "program": "DEMO",
+      "match_type": "possible",
+      "severity": "medium",
+      "note": "Name similarity to sanctioned shell entity — manual review required"
+    }
+  }
+}
