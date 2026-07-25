@@ -122,8 +122,9 @@ See [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md) for LAN troubleshooting.
 - [docs/GTM_POSITIONING.md](docs/GTM_POSITIONING.md) — what we sell vs roadmap
 - [docs/ENTERPRISE.md](docs/ENTERPRISE.md) — auth, tenancy, private deploy, gaps
 - [docs/MRM_COMPLIANCE.md](docs/MRM_COMPLIANCE.md) — model-risk / compliance one-pager
-- [docs/PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md) — spreading / memo / LOS phases
+- [docs/PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md) — spreading / memo / LOS / SSO phases
 - [docs/OSINT_EVAL.md](docs/OSINT_EVAL.md) — golden-set accuracy metrics (fixture corpus)
+- [docs/SSO.md](docs/SSO.md) · [docs/SPREADING.md](docs/SPREADING.md) · [docs/MEMO.md](docs/MEMO.md) · [docs/LOS_WEBHOOKS.md](docs/LOS_WEBHOOKS.md)
 
 ## API
 
@@ -134,10 +135,17 @@ See [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md) for LAN troubleshooting.
 | GET | `/v1/cases` | List cases (demo UI) |
 | GET | `/v1/cases/{id}` | Case status + case file |
 | GET | `/v1/cases/{id}/audit` | Immutable audit timeline |
+| GET | `/v1/cases/{id}/export` | LOS JSON export bundle |
+| POST | `/v1/cases/{id}/spreads` | Upload financial spread CSV/XLSX |
+| GET | `/v1/cases/{id}/spreads` | Latest spread + variances |
+| POST | `/v1/cases/{id}/memo` | Generate credit memo draft |
+| GET | `/v1/cases/{id}/memo` | Latest memo |
+| POST | `/v1/los/webhooks` | Register HMAC webhook (admin) |
+| POST | `/v1/los/ingest` | LOS document push → new case |
 | POST | `/v1/tenants/{id}/policies` | Upload policy PDF/Markdown |
 | GET | `/v1/tenants/{id}/policies` | List policies |
 
-Auth: `Authorization: Bearer <API_KEY>` (see `.env`).
+Auth: `Authorization: Bearer <API_KEY|OIDC_JWT>` (see `.env` `AUTH_MODE`, [docs/SSO.md](docs/SSO.md)).
 
 **Verticals:** `sba_7a`, `cre_acquisition`, `specialty_mortgage_bank_statement`
 

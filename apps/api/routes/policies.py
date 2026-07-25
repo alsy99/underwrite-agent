@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.deps import verify_api_key
+from apps.api.deps import RequireMutate, RequireRead, resolve_tenant
+from packages.auth import Principal
 from packages.db.session import get_session
 from packages.policy_rag.service import PolicyRAGService
 
@@ -31,15 +32,15 @@ class PolicyTextUpload(BaseModel):
 async def upload_policy_json(
     tenant_id: str,
     body: PolicyTextUpload,
-    _: str = Depends(verify_api_key),
+    principal: Principal = Depends(RequireMutate),
     session: AsyncSession = Depends(get_session),
 ):
-    """Upload policy as JSON (Postman-friendly — no multipart file required)."""
+    tid = resolve_tenant(principal, tenant_id)
     if not body.content.strip():
         raise HTTPException(400, "content must not be empty")
     service = PolicyRAGService(session)
     policy = await service.ingest_policy(
-        tenant_id,
+        tid,
         body.title,
         body.filename,
         body.content.encode("utf-8"),
@@ -63,15 +64,16 @@ async def upload_policy(
     policy_version: str = Form(default=""),
     effective_date: str = Form(default=""),
     file: UploadFile = File(...),
-    _: str = Depends(verify_api_key),
+    principal: Principal = Depends(RequireMutate),
     session: AsyncSession = Depends(get_session),
 ):
+    tid = resolve_tenant(principal, tenant_id)
     data = await file.read()
     if not data:
         raise HTTPException(400, "Empty file")
     service = PolicyRAGService(session)
     policy = await service.ingest_policy(
-        tenant_id,
+        tid,
         title,
         file.filename or "policy.md",
         data,
@@ -91,11 +93,12 @@ async def upload_policy(
 @router.get("/{tenant_id}/policies", response_model=list[PolicyResponse])
 async def list_policies(
     tenant_id: str,
-    _: str = Depends(verify_api_key),
+    principal: Principal = Depends(RequireRead),
     session: AsyncSession = Depends(get_session),
 ):
+    tid = resolve_tenant(principal, tenant_id)
     service = PolicyRAGService(session)
-    policies = await service.list_policies(tenant_id)
+    policies = await service.list_policies(tid)
     return [
         PolicyResponse(
             id=p.id,

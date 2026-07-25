@@ -46,6 +46,19 @@ class Settings(BaseSettings):
     osint_fixture_dir: str = "data/fixtures/osint"
     osint_cache_dir: str = ".cache/osint"
 
+    # Auth: api_key | oidc | both
+    auth_mode: str = "both"
+    oidc_issuer: str = ""
+    oidc_audience: str = ""
+    oidc_jwks_url: str = ""
+    # HS256 secret for local/CI JWT (when set, accepts HS256 Bearer tokens)
+    oidc_dev_secret: str = "dev-oidc-hs256-change-me"
+    oidc_tenant_claim: str = "tenant_id"
+    oidc_roles_claim: str = "roles"
+    # Default roles for shared API_KEY principal
+    api_key_default_tenant: str = "default"
+    api_key_default_roles: str = "admin,underwriter,reviewer"
+
 
 @lru_cache
 def get_settings() -> Settings:

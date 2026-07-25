@@ -87,6 +87,16 @@ class EntityProfile(BaseModel):
     sources_used: list[str] = Field(default_factory=list)
 
 
+class VarianceFinding(BaseModel):
+    metric: str
+    stated: float | None = None
+    spread: float | None = None
+    variance_pct: float | None = None
+    threshold_pct: float = 0.10
+    severity: str = "medium"
+    summary: str = ""
+
+
 class CaseFile(BaseModel):
     executive_summary: str
     findings: list[Finding] = Field(default_factory=list)
@@ -96,6 +106,8 @@ class CaseFile(BaseModel):
     recommended_action: RecommendedAction = RecommendedAction.REVIEW
     open_questions: list[str] = Field(default_factory=list)
     entity_profiles: list[EntityProfile] = Field(default_factory=list)
+    spreads_summary: list[VarianceFinding] = Field(default_factory=list)
+    memo_version: int | None = None
 
 
 class CaseCreateRequest(BaseModel):

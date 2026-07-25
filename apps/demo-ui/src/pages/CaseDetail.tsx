@@ -10,7 +10,7 @@ import {
   Radar,
   Scale,
 } from "lucide-react";
-import { getAudit, getCase } from "../api";
+import { getAudit, getCase, generateMemo, uploadSpread } from "../api";
 import { ActionBadge, StatusBadge } from "../components/StatusBadge";
 import {
   formatDate,
@@ -25,6 +25,11 @@ export function CaseDetail() {
   const [data, setData] = useState<CaseResponse | null>(null);
   const [audit, setAudit] = useState<AuditEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [memoBody, setMemoBody] = useState<string | null>(null);
+  const [variances, setVariances] = useState<
+    { metric: string; severity: string; summary: string }[]
+  >([]);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!caseId) return;
@@ -203,6 +208,74 @@ export function CaseDetail() {
           </div>
 
           <div className="space-y-6">
+            {data?.status === "completed" && (
+              <section className="card p-5 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Spreading & memo
+                </h3>
+                <label className="block text-xs text-slate-600">
+                  Upload CSV/XLSX spread
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xlsm"
+                    className="mt-1 block w-full text-xs"
+                    disabled={busy}
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f || !caseId) return;
+                      setBusy(true);
+                      try {
+                        const r = await uploadSpread(caseId, f);
+                        setVariances(r.variances);
+                        await load();
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : "Spread failed");
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  />
+                </label>
+                {variances.length > 0 && (
+                  <ul className="space-y-1 text-xs text-slate-700">
+                    {variances.map((v, i) => (
+                      <li key={i}>
+                        <span className={`badge mr-1 ${severityColor(v.severity)}`}>
+                          {v.severity}
+                        </span>
+                        {v.summary}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button
+                  type="button"
+                  className="btn-secondary w-full text-sm"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!caseId) return;
+                    setBusy(true);
+                    try {
+                      const m = await generateMemo(caseId);
+                      setMemoBody(m.body);
+                      await load();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Memo failed");
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Generate credit memo
+                </button>
+                {memoBody && (
+                  <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded border border-surface-border bg-slate-50 p-2 text-[11px] text-slate-700">
+                    {memoBody}
+                  </pre>
+                )}
+              </section>
+            )}
+
             {cf.open_questions.length > 0 && (
               <section className="card p-5">
                 <h3 className="text-sm font-semibold text-slate-900">

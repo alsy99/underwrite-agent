@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from apps.api.routes import cases, health, policies
+from apps.api.routes import cases, health, los, policies
 from packages.config import get_settings
 from packages.db.session import init_db
 
@@ -57,3 +57,4 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(cases.router)
 app.include_router(policies.router)
+app.include_router(los.router)

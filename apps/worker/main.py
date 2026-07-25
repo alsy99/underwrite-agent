@@ -35,12 +35,21 @@ async def process_case(ctx: dict, case_id: str) -> None:
                 await session.commit()
 
 
+async def deliver_webhook_job(ctx: dict, delivery_id: str) -> None:
+    from packages.db.session import _get_engine
+    from packages.los import deliver_webhook
+
+    _, factory = _get_engine()
+    async with factory() as session:
+        await deliver_webhook(session, delivery_id)
+
+
 async def startup(ctx: dict) -> None:
     await init_db()
 
 
 class WorkerSettings:
-    functions = [process_case]
+    functions = [process_case, deliver_webhook_job]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     on_startup = startup
 

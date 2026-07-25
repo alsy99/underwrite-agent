@@ -50,6 +50,31 @@ export async function createCase(
   return request("/v1/cases", { method: "POST", body: form });
 }
 
+export async function uploadSpread(
+  caseId: string,
+  file: File
+): Promise<{
+  id: string;
+  payload: Record<string, number>;
+  variances: { metric: string; severity: string; summary: string }[];
+}> {
+  const form = new FormData();
+  form.append("file", file);
+  return request(`/v1/cases/${caseId}/spreads`, { method: "POST", body: form });
+}
+
+export async function generateMemo(
+  caseId: string
+): Promise<{ version: number; body: string; format: string }> {
+  return request(`/v1/cases/${caseId}/memo`, { method: "POST" });
+}
+
+export async function getLatestMemo(
+  caseId: string
+): Promise<{ version: number; body: string; format: string }> {
+  return request(`/v1/cases/${caseId}/memo`);
+}
+
 export async function uploadPolicySba(): Promise<{ id: string }> {
   const content = await fetch(`${assetBase}fixtures/sba_policy_seed.md`).then((r) =>
     r.text()

@@ -211,6 +211,24 @@ class InvestigationRunner:
         self.case.completed_at = datetime.now(timezone.utc)
         self.case.case_file_json = case_file.model_dump(mode="json")
         await self.session.commit()
+
+        try:
+            from packages.los import EVENT_CASE_COMPLETED, emit_and_deliver
+
+            await emit_and_deliver(
+                self.session,
+                tenant_id=self.case.tenant_id,
+                event_type=EVENT_CASE_COMPLETED,
+                payload={
+                    "case_id": self.case.id,
+                    "recommended_action": case_file.recommended_action.value,
+                    "status": "completed",
+                },
+            )
+        except Exception:
+            # Webhooks must not fail investigation completion
+            pass
+
         return {**state, "case_file": case_file.model_dump(mode="json")}
 
     async def _get_case(self) -> CaseRecord:

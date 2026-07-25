@@ -6,31 +6,22 @@ Honest snapshot of multi-tenant / security posture today and what production buy
 
 | Concern | Current state |
 |---------|----------------|
-| Auth | Single shared `API_KEY` (Bearer) for mutating API routes |
-| Tenancy | Soft isolation via `tenant_id` string on cases, docs, policies, MinIO prefixes |
+| Auth | `AUTH_MODE=both`: shared `API_KEY`, tenant API keys, or OIDC JWT ([SSO.md](SSO.md)) |
+| Tenancy | Soft isolation via `tenant_id`; OIDC/tenant keys bind tenant from identity |
+| RBAC | `admin` / `underwriter` / `reviewer` on mutate vs read vs webhook admin |
 | Audit | Per-case immutable event log (actor, action, hashed inputs, outputs, prompt version) |
-| PII | Regex redaction before LLM prompts ([`packages/documents/pii.py`](../packages/documents/pii.py)) |
-| Deploy | Docker Compose (Postgres, Redis, MinIO, API, worker) or brew local services |
-| UI gate | Optional demo password hash (`VITE_UI_PASSWORD_HASH` / `UI_PASSWORD`) — not bank IAM |
+| Spreading / memo | CSV/XLSX spreads + templated credit memos |
+| LOS | HMAC webhooks + export/ingest ([LOS_WEBHOOKS.md](LOS_WEBHOOKS.md)) |
+| PII | Regex redaction before LLM prompts |
+| Deploy | Docker Compose or brew local services |
+| UI gate | Demo password still for static Pages; API uses Bearer |
 
-## Private deployment
+## Gaps (buyers will still ask)
 
-1. Copy `.env.example` → `.env`; set strong `API_KEY`
-2. `docker compose up -d` (or managed Postgres/Redis + MinIO/S3-compatible)
-3. Run API + worker; optionally sync investigation with `SYNC_INVESTIGATION=true` for small installs
-4. Keep OSINT in `fixture` or `auto` with reviewed live keys; prefer VPC egress allowlists for Nominatim / EDGAR / OFAC
-
-See also [INTERNET_DEPLOY.md](INTERNET_DEPLOY.md) (demo tunnels — not production edge).
-
-## Gaps (buyers will ask)
-
-- SSO / OIDC (Okta, Azure AD)
-- Per-tenant API keys and secrets rotation
-- RBAC (underwriter vs reviewer vs admin)
-- Row-level tenancy enforcement beyond client-supplied `tenant_id`
-- Encryption at rest / CMEK story beyond storage defaults
+- Full SSO UI redirect in demo SPA (API OIDC ready; UI still API-key Bearer)
 - Formal SOC2 / ISO evidence pack
-- Contracted OSINT/KYC vendors with SLAs and indemnities
+- Contracted OSINT/KYC vendors with SLAs
+- Named Encompass/nCino connectors (Phase E)
 
 ## Recommended enterprise path
 

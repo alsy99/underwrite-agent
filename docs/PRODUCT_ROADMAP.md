@@ -1,38 +1,43 @@
 # Product roadmap
 
-Phased path from investigation MVP → fuller underwriting adjacent product. Dates intentionally relative.
+Phased path from investigation MVP → underwriter workflow → enterprise packaging.
 
-## Phase 0 — Now (shipped)
+## Phase 0 — Shipped
 
 - Document ingest, cross-check, policy RAG, LangGraph investigation
 - Hybrid OSINT + entity profiles + demo UI
 - GTM / enterprise / MRM docs + OSINT golden eval
 
-## Phase 1 — Live OSINT depth (next)
+## Phase A — SSO / OIDC + RBAC (shipped)
 
-- Contracted business registry + employment verification adapters
-- Hardened OFAC refresh SLAs; adverse-media vendor option
-- Expand golden set with anonymized lender-labeled cases
-- Per-tenant API keys
+- `AUTH_MODE=api_key|oidc|both`
+- Principals from shared key, tenant API keys, or OIDC JWT
+- Roles: admin / underwriter / reviewer
+- Docs: [SSO.md](SSO.md)
 
-## Phase 2 — Underwriter workflow
+## Phase B — Spreading (shipped)
 
-- Credit memo draft from case file (templated, citation-backed)
-- Spreading import (CSV / Excel) with variance checks vs stated income
-- Exception queue UI (review queue, assign, SLA)
+- CSV/XLSX upload, canonical metrics, variance vs stated metadata
+- Docs: [SPREADING.md](SPREADING.md)
 
-## Phase 3 — LOS integration
+## Phase C — Credit memo (shipped)
 
-- Outbound webhooks / REST for case status + findings
-- Connectors: Encompass, nCino, or generic LOS document pull
-- SSO (OIDC) and RBAC
+- Templated Markdown memos with citations from case file
+- Docs: [MEMO.md](MEMO.md)
+
+## Phase D — LOS generic (shipped)
+
+- HMAC webhooks, case export, LOS ingest
+- Docs: [LOS_WEBHOOKS.md](LOS_WEBHOOKS.md)
+
+## Phase E — Later
+
+- Encompass / nCino thin adapters on canonical export
+- Contracted live OSINT vendors
+- Exception queue UI (assign / SLA)
 
 ## Explicit non-goals (near term)
 
 - Replacing core LOS origination
 - Consumer soft-pull credit bureau product
 - Unlicensed scraping of social networks
-
-## Buyers asking “when spreading / memo / LOS?”
-
-Point here. Investigation layer remains the wedge until Phase 2–3 land.

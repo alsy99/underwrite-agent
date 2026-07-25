@@ -45,6 +45,10 @@ flowchart TD
 | Worker | `apps/worker/` | ARQ `process_case` + LangGraph graph definition |
 | Investigation | `packages/agent/` | Runner nodes, case file builder, tool registry |
 | OSINT | `packages/osint/` | Hybrid providers, router, EntityProfile analyzer |
+| Spreading | `packages/spreading/` | CSV/XLSX parse + variance vs stated metrics |
+| Memo | `packages/memo/` | Jinja credit-memo drafts |
+| LOS | `packages/los/` | HMAC webhooks, export, ingest |
+| Auth | `packages/auth/` | API key + OIDC principals / RBAC |
 | Cross-check | `packages/cross_check/` | Semantic + rule-based contradiction detection |
 | Policy RAG | `packages/policy_rag/` | Tenant policy ingest/retrieve/evaluate |
 | Documents | `packages/documents/` | Parse, PII redact, classify, chunk |
