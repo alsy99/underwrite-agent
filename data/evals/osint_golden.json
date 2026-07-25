@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "description": "Synthetic OSINT golden set for fixture-mode ProfileAnalyzer evaluation. Not a production portfolio backtest.",
+  "cases": [
+    {
+      "id": "clean_acme",
+      "metadata": {
+        "business_name": "Acme Consulting LLC",
+        "employer": "Acme Consulting LLC",
+        "stated_employer": "Acme Consulting LLC",
+        "applicant_name": "John Smith",
+        "address": "1200 Market Street, Suite 400, Wilmington, DE 19801",
+        "ein": "12-3456789"
+      },
+      "expect": {
+        "business_status_in": ["corroborated", "partial"],
+        "has_employer_mismatch": false,
+        "has_sanctions_hit": false,
+        "address_high_risk": false,
+        "any_flagged_or_mismatch": false
+      }
+    },
+    {
+      "id": "employer_mismatch_beta",
+      "metadata": {
+        "business_name": "Acme Consulting LLC",
+        "employer": "Beta Industries Inc",
+        "stated_employer": "Acme Consulting LLC",
+        "applicant_name": "John Smith",
+        "address": "1200 Market Street, Suite 400, Wilmington, DE 19801"
+      },
+      "expect": {
+        "employer_status_in": ["mismatch", "flagged"],
+        "has_employer_mismatch": true,
+        "has_sanctions_hit": false,
+        "any_flagged_or_mismatch": true
+      }
+    },
+    {
+      "id": "nova_apex_mismatch",
+      "metadata": {
+        "business_name": "Apex Design Studio LLC",
+        "employer": "Nova Creative Group LLC",
+        "stated_employer": "Apex Design Studio LLC",
+        "applicant_name": "Jordan Lee",
+        "address": "410 Commerce Blvd Suite 12 Austin TX"
+      },
+      "expect": {
+        "has_employer_mismatch": true,
+        "any_flagged_or_mismatch": true
+      }
+    },
+    {
+      "id": "inactive_shell",
+      "metadata": {
+        "business_name": "Shell Holdings LLC",
+        "employer": "Shell Holdings LLC",
+        "stated_employer": "Shell Holdings LLC",
+        "address": "c/o Northwest Registered Agent 5305 River Road N Salem OR"
+      },
+      "expect": {
+        "business_status_in": ["flagged"],
+        "has_sanctions_possible_or_hit": true,
+        "address_high_risk": true,
+        "any_flagged_or_mismatch": true
+      }
+    },
+    {
+      "id": "sanctions_hit",
+      "metadata": {
+        "business_name": "Blocked Trader Syndicate",
+        "applicant_name": "Blocked Trader Syndicate",
+        "address": "88 Main Street Portland OR"
+      },
+      "expect": {
+        "has_sanctions_hit": true,
+        "any_flagged_or_mismatch": true
+      }
+    },
+    {
+      "id": "virtual_office_ups",
+      "metadata": {
+        "business_name": "Cascade Analytics LLC",
+        "employer": "Cascade Analytics LLC",
+        "stated_employer": "Cascade Analytics LLC",
+        "address": "The UPS Store 100 Mail Box Lane Suite 200 Las Vegas NV"
+      },
+      "expect": {
+        "address_high_risk": true,
+        "has_employer_mismatch": false,
+        "has_sanctions_hit": false
+      }
+    },
+    {
+      "id": "adverse_media_beta",
+      "metadata": {
+        "business_name": "Beta Industries Inc",
+        "employer": "Beta Industries Inc",
+        "stated_employer": "Beta Industries Inc",
+        "address": "500 Industrial Parkway, Austin, TX 78701"
+      },
+      "expect": {
+        "has_adverse_media": true,
+        "has_employer_mismatch": false,
+        "has_sanctions_hit": false
+      }
+    },
+    {
+      "id": "sunrise_clean",
+      "metadata": {
+        "business_name": "Sunrise Bakery LLC",
+        "employer": "Sunrise Bakery LLC",
+        "stated_employer": "Sunrise Bakery LLC",
+        "address": "88 Main Street Portland OR"
+      },
+      "expect": {
+        "business_status_in": ["corroborated", "partial"],
+        "has_employer_mismatch": false,
+        "has_sanctions_hit": false,
+        "address_high_risk": false,
+        "any_flagged_or_mismatch": false
+      }
+    }
+  ]
+}

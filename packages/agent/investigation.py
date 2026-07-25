@@ -72,7 +72,7 @@ class InvestigationRunner:
         case.status = "processing"
         await self.session.flush()
 
-        self.audit = AuditLogger(self.session, case.id)
+        self.audit = AuditLogger(self.session, case.id, tenant_id=case.tenant_id)
         doc_pipeline = DocumentPipeline(self.session, case.id, case.tenant_id)
         bundle = await doc_pipeline.get_case_text_bundle()
 

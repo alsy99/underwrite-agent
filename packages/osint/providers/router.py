@@ -79,7 +79,10 @@ class OsintRouter:
         )
 
     async def check_sanctions(self, name: str) -> ProviderResult:
-        live_ready = bool(self.settings.ofac_sdn_path)
+        # Use live SDN when file/cache present, or when mode=live (may download).
+        live_ready = self.ofac.available() or (
+            self.mode == "live" and self.ofac.can_download()
+        )
         return await self._with_fallback(
             lambda: self.ofac.check_sanctions(name),
             lambda: self.fixture.check_sanctions(name),

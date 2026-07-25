@@ -24,6 +24,8 @@ uvicorn apps.api.main:app --reload --port 8000
 python -m apps.worker.main
 ```
 
+Secrets and provider keys live in the repo-root **`.env`** (see `.env.example` for every placeholder). API, worker, scripts, and demo UI all load from that file.
+
 Run demo:
 
 ```bash
@@ -115,6 +117,14 @@ See [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md) for LAN troubleshooting.
 - [docs/INTERNET_DEPLOY.md](docs/INTERNET_DEPLOY.md) — tunnels, secrets, ngrok
 - [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md) — LAN / firewall
 
+## GTM / enterprise
+
+- [docs/GTM_POSITIONING.md](docs/GTM_POSITIONING.md) — what we sell vs roadmap
+- [docs/ENTERPRISE.md](docs/ENTERPRISE.md) — auth, tenancy, private deploy, gaps
+- [docs/MRM_COMPLIANCE.md](docs/MRM_COMPLIANCE.md) — model-risk / compliance one-pager
+- [docs/PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md) — spreading / memo / LOS phases
+- [docs/OSINT_EVAL.md](docs/OSINT_EVAL.md) — golden-set accuracy metrics (fixture corpus)
+
 ## API
 
 | Method | Path | Description |
@@ -148,8 +158,13 @@ Auth: `Authorization: Bearer <API_KEY>` (see `.env`).
 
 ```bash
 pytest tests/ -q
+OSINT_MODE=fixture python scripts/eval_osint.py   # OSINT golden metrics → output/
 ```
+
+See [docs/OSINT_EVAL.md](docs/OSINT_EVAL.md) for baseline F1 numbers and disclaimer.
 
 ## Architecture
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the pipeline diagram. Core flow: document ingest → cross-check → policy RAG → agent tools → case file + audit log.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the pipeline diagram and product boundary.
+Core flow: document ingest → cross-check → policy RAG → OSINT agent tools → case file with **entity profiles** + audit log.
+This is an **investigation layer**, not a full spreading / memo / LOS product ([roadmap](docs/PRODUCT_ROADMAP.md)).

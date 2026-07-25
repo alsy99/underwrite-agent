@@ -12,9 +12,10 @@ from packages.schemas.case import Citation
 
 
 class AuditLogger:
-    def __init__(self, session: AsyncSession, case_id: str):
+    def __init__(self, session: AsyncSession, case_id: str, tenant_id: str | None = None):
         self.session = session
         self.case_id = case_id
+        self.tenant_id = tenant_id
 
     @staticmethod
     def hash_inputs(data: Any) -> str:
@@ -31,6 +32,9 @@ class AuditLogger:
         model: str | None = None,
         prompt_version: str | None = None,
     ) -> AuditEvent:
+        out = dict(outputs or {})
+        if self.tenant_id and "tenant_id" not in out:
+            out["tenant_id"] = self.tenant_id
         record = AuditEventRecord(
             id=str(uuid.uuid4()),
             case_id=self.case_id,
@@ -38,7 +42,7 @@ class AuditLogger:
             actor=actor,
             action=action,
             inputs_hash=self.hash_inputs(inputs) if inputs is not None else None,
-            outputs_json=outputs or {},
+            outputs_json=out,
             citations_json=[c.model_dump() for c in (citations or [])],
             model=model,
             prompt_version=prompt_version,

@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     sec_edgar_user_agent: str = "underwrite-agent contact@example.com"
     ofac_sdn_path: str = ""
     osint_fixture_dir: str = "data/fixtures/osint"
+    osint_cache_dir: str = ".cache/osint"
 
 
 @lru_cache

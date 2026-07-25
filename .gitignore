@@ -14,5 +14,6 @@ htmlcov/
 node_modules/
 apps/demo-ui/dist/
 .run/
+.cache/
 output/
 *.tsbuildinfo
