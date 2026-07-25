@@ -39,6 +39,7 @@ Recommendation (`approve` / `review` / `decline`) is **advisory**. Underwriter r
 - Postman collection + fixture clean vs fraudulent packs
 - OSINT golden eval script + published fixture F1 floors
 - Architecture + MRM one-pager for risk committees
+- Non-technical workflow guide: [BUSINESS_GUIDE.md](BUSINESS_GUIDE.md)
 
 ## Next commercial milestones
 

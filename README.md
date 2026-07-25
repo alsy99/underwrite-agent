@@ -119,6 +119,7 @@ See [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md) for LAN troubleshooting.
 
 ## GTM / enterprise
 
+- [docs/BUSINESS_GUIDE.md](docs/BUSINESS_GUIDE.md) — **non-tech:** workflows, Sherlock, roles (business / credit risk / product)
 - [docs/GTM_POSITIONING.md](docs/GTM_POSITIONING.md) — what we sell vs roadmap
 - [docs/ENTERPRISE.md](docs/ENTERPRISE.md) — auth, tenancy, private deploy, gaps
 - [docs/MRM_COMPLIANCE.md](docs/MRM_COMPLIANCE.md) — model-risk / compliance one-pager
