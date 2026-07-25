@@ -9,6 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.worker.agent_graph import InvestigationState, build_investigation_graph
 from packages.agent.case_file import CaseFileBuilder
+from packages.agent.entity_names import (
+    clean_org_name,
+    employers_conflict,
+    extract_employer_from_label,
+    extract_employer_from_letter,
+)
 from packages.agent.tools.registry import ToolRegistry
 from packages.audit.logger import AuditLogger
 from packages.config import get_settings
@@ -79,6 +85,8 @@ class InvestigationRunner:
         metadata = dict(case.metadata_json or {})
         metadata = self._enrich_metadata(metadata, bundle)
         case.metadata_json = metadata
+        self.builder.metadata = metadata
+        self.builder.vertical = case.vertical
 
         self.tools = ToolRegistry(
             self.session,
@@ -374,6 +382,12 @@ class InvestigationRunner:
 
     def _enrich_metadata(self, metadata: dict[str, Any], bundle: str) -> dict[str, Any]:
         enriched = dict(metadata)
+        for key in ("employer", "stated_employer", "employer_from_letter", "business_name"):
+            if enriched.get(key):
+                cleaned = clean_org_name(str(enriched[key]))
+                if cleaned:
+                    enriched[key] = cleaned
+
         if not enriched.get("business_name"):
             m = re.search(
                 r"(?:business(?:\s+(?:legal\s+)?name)?|applicant|borrower|entity)\s*[:\-]\s*"
@@ -382,17 +396,16 @@ class InvestigationRunner:
                 re.IGNORECASE,
             )
             if m:
-                enriched["business_name"] = m.group(1).strip()
+                name = clean_org_name(m.group(1))
+                if name:
+                    enriched["business_name"] = name
+
         if not enriched.get("employer") and not enriched.get("stated_employer"):
-            m = re.search(
-                r"(?:employer|employed by|works at|stated employer[^:\n]*)\s*[:\-]?\s*"
-                r"([A-Za-z0-9 &.,'\-]+(?:LLC|Inc\.?|Corp\.?)?)",
-                bundle,
-                re.IGNORECASE,
-            )
-            if m:
-                enriched["employer"] = m.group(1).strip()
-                enriched.setdefault("stated_employer", enriched["employer"])
+            labeled = extract_employer_from_label(bundle)
+            if labeled:
+                enriched["employer"] = labeled
+                enriched.setdefault("stated_employer", labeled)
+
         if not enriched.get("address"):
             m = re.search(
                 r"(?:address|located at|property|business address)\s*[:\-]\s*([^\n]{10,120})",
@@ -402,7 +415,9 @@ class InvestigationRunner:
             if m:
                 enriched["address"] = m.group(1).strip().rstrip(".")
         if enriched.get("employer") and not enriched.get("stated_employer"):
-            enriched["stated_employer"] = enriched["employer"]
+            enriched["stated_employer"] = clean_org_name(str(enriched["employer"])) or enriched[
+                "employer"
+            ]
 
         if not enriched.get("ein"):
             m = re.search(r"\bEIN\s*[:#]?\s*(\d{2}-\d{7})\b", bundle, re.IGNORECASE)
@@ -417,7 +432,6 @@ class InvestigationRunner:
             )
             if m:
                 name = m.group(1).strip().rstrip(".")
-                # Avoid capturing "Business Legal Name" style leftovers
                 if "llc" not in name.lower() and "inc" not in name.lower():
                     enriched["applicant_name"] = name
 
@@ -430,18 +444,13 @@ class InvestigationRunner:
             if m:
                 enriched["domain"] = m.group(2).lower()
 
-        # Capture employment letter employer when it differs (fraud signal seed)
-        emp_letter = re.search(
-            r"(?:employed full-time by|employed by)\s+([A-Za-z0-9 &.,'\-]+(?:LLC|Inc\.?))",
-            bundle,
-            re.IGNORECASE,
-        )
-        if emp_letter:
-            letter_emp = emp_letter.group(1).strip()
-            enriched.setdefault("employer_from_letter", letter_emp)
-            # Prefer letter employer as verification target when it conflicts with stated
+        letter_emp = extract_employer_from_letter(bundle)
+        if letter_emp:
+            enriched["employer_from_letter"] = letter_emp
             stated = enriched.get("stated_employer") or enriched.get("employer")
-            if stated and letter_emp.lower() not in stated.lower() and stated.lower() not in letter_emp.lower():
+            if stated and employers_conflict(str(stated), letter_emp):
+                enriched["employer"] = letter_emp
+            elif not stated:
                 enriched["employer"] = letter_emp
 
         return enriched
@@ -457,21 +466,32 @@ class InvestigationRunner:
                 f"Complete sanctions due diligence for {result.get('name')}"
             )
         if tool == "verify_employer_osint" and not result.get("match"):
-            self.builder.open_questions.append(
-                "Reconcile employer name across application and employment letter"
+            stated = self.builder.metadata.get("stated_employer") or self.builder.metadata.get(
+                "employer"
             )
+            letter = self.builder.metadata.get("employer_from_letter")
+            if stated and letter:
+                self.builder.open_questions.append(
+                    "Please provide a written explanation for the employer name discrepancy "
+                    f"between the application ({stated}) and the employment letter ({letter})."
+                )
+            else:
+                self.builder.open_questions.append(
+                    "Please provide a written explanation for the employer name discrepancy "
+                    "between the application and the employment letter."
+                )
 
     async def _synthesize_brief(self, vertical: str) -> str:
         system = (
-            "Write a 1-page executive summary for a human underwriter based ONLY on "
-            "the structured findings provided. Be concise and factual. "
-            "Include OSINT entity profile status when present."
+            "Write an executive summary for a human underwriter in 3-5 complete sentences "
+            "of professional prose. Synthesize key risks only. No bullets, no JSON, "
+            "no headings, no repetition of full policy text. Base ONLY on structured facts."
         )
         facts = {
             "vertical": vertical,
             "contradictions": [c.model_dump() for c in self.builder.contradictions],
             "policy_findings": [p.model_dump() for p in self.builder.policy_findings],
-            "findings": [f.model_dump() for f in self.builder.findings],
+            "findings": [f.model_dump() for f in self.builder.findings[:12]],
             "entity_profiles": [
                 p.model_dump(mode="json") if isinstance(p, EntityProfile) else p
                 for p in self.builder.entity_profiles
@@ -479,26 +499,4 @@ class InvestigationRunner:
             "recommended_action": self.builder.recommend_action().value,
         }
         user = f"Structured facts:\n{facts}"
-        text = await self.llm.complete(system, user, prompt_version="brief_v1")
-        if not text or len(text) < 50:
-            n_contra = len(self.builder.contradictions)
-            n_policy = len(self.builder.policy_findings)
-            n_profiles = len(self.builder.entity_profiles)
-            action = self.builder.recommend_action().value
-            flagged = sum(
-                1
-                for p in self.builder.entity_profiles
-                if p.status in ("flagged", "mismatch")
-            )
-            text = (
-                f"Underwriting investigation for {vertical} loan package complete. "
-                f"Detected {n_contra} cross-document contradiction(s) and "
-                f"{n_policy} policy finding(s). "
-                f"OSINT profiling covered {n_profiles} entit(y/ies) "
-                f"({flagged} flagged/mismatch). "
-                f"Recommended action: {action}. "
-            )
-            if n_contra == 0:
-                text += "No contradictions detected across configured narrative pairs. "
-            text += "See structured findings, entity profiles, and audit timeline for evidence."
-        return text
+        return await self.llm.complete(system, user, prompt_version="brief_v2")

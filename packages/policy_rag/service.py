@@ -139,8 +139,12 @@ class PolicyRAGService:
         )
         system = (
             "You are a bank policy compliance engine. Given policy excerpts and a loan case, "
-            'output JSON: {"findings":[{"rule_ref":"...","status":"pass|fail|review",'
-            '"excerpt":"...","source_policy_doc_id":"...","confidence":0.0-1.0}]}'
+            'output JSON: {"findings":[{"rule_ref":"short code or name",'
+            '"status":"pass|fail|review",'
+            '"excerpt":"1-2 sentences on WHAT failed or passed and by how much when known '
+            '(do NOT paste the full policy text)",'
+            '"source_policy_doc_id":"...","confidence":0.0-1.0}]}. '
+            "Deduplicate: one finding per rule_ref. Prefer fail/review only when evidence supports it."
         )
         user = f"Case context:\n{context[:12000]}\n\nPolicy excerpts:\n{excerpts}"
 

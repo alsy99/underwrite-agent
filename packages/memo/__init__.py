@@ -9,6 +9,8 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from packages.agent.case_polish import severity_rank
+from packages.agent.entity_names import clean_metadata_entities
 from packages.schemas.case import CaseFile, VarianceFinding
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -28,6 +30,21 @@ def context_hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
+def _group_findings(findings: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    groups = {"high": [], "medium": [], "low": [], "other": []}
+    ordered = sorted(
+        findings,
+        key=lambda f: (severity_rank(str(f.get("severity", ""))), str(f.get("id", ""))),
+    )
+    for f in ordered:
+        sev = str(f.get("severity", "")).lower()
+        if sev in groups:
+            groups[sev].append(f)
+        else:
+            groups["other"].append(f)
+    return groups
+
+
 def build_memo_context(
     *,
     case_id: str,
@@ -38,14 +55,16 @@ def build_memo_context(
     spread: dict[str, Any] | None = None,
     variances: list[VarianceFinding] | None = None,
 ) -> dict[str, Any]:
+    findings = [f.model_dump(mode="json") for f in case_file.findings]
     return {
         "case_id": case_id,
         "vertical": vertical,
         "tenant_id": tenant_id,
-        "metadata": metadata,
+        "metadata": clean_metadata_entities(metadata),
         "executive_summary": case_file.executive_summary,
         "recommended_action": case_file.recommended_action.value,
-        "findings": [f.model_dump(mode="json") for f in case_file.findings],
+        "findings": findings,
+        "findings_by_severity": _group_findings(findings),
         "contradictions": [c.model_dump(mode="json") for c in case_file.contradictions],
         "policy_findings": [p.model_dump(mode="json") for p in case_file.policy_findings],
         "entity_profiles": [p.model_dump(mode="json") for p in case_file.entity_profiles],

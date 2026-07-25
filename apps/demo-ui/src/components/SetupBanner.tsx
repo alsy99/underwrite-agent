@@ -3,7 +3,9 @@ import { AlertCircle } from "lucide-react";
 const apiUrl = import.meta.env.VITE_API_URL?.trim() || "";
 const apiKey = import.meta.env.VITE_API_KEY?.trim() || "";
 
+/** Local Vite uses empty VITE_API_URL + /api proxy. Static Pages needs absolute URL. */
 export function isBackendConfigured(): boolean {
+  if (import.meta.env.DEV) return true;
   return Boolean(apiUrl && apiKey);
 }
 

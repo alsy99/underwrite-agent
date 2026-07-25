@@ -17,10 +17,26 @@
 - **{{ k }}:** {{ v }}
 {% endfor %}
 
-## Findings
-{% for f in findings %}
+## Findings (by severity)
+{% set grouped = findings_by_severity %}
+{% if grouped.high %}
+### High
+{% for f in grouped.high %}
+- **{{ f.title }}** ({{ f.id }}): {{ f.description }}
+{% endfor %}
+{% endif %}
+{% if grouped.medium %}
+### Medium
+{% for f in grouped.medium %}
+- **{{ f.title }}** ({{ f.id }}): {{ f.description }}
+{% endfor %}
+{% endif %}
+{% if grouped.low or grouped.other %}
+### Other
+{% for f in grouped.low + grouped.other %}
 - [{{ f.severity }}] **{{ f.title }}** ({{ f.id }}): {{ f.description }}
 {% endfor %}
+{% endif %}
 {% if not findings %}
 - None recorded.
 {% endif %}

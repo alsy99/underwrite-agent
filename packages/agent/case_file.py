@@ -1,5 +1,11 @@
 from datetime import datetime, timezone
 
+from packages.agent.case_polish import (
+    build_open_questions,
+    polish_findings,
+    policy_finding_description,
+    synthesize_executive_summary,
+)
 from packages.schemas.case import (
     CaseFile,
     Citation,
@@ -20,6 +26,8 @@ class CaseFileBuilder:
         self.timeline: list[InvestigationStep] = []
         self.open_questions: list[str] = []
         self.entity_profiles: list[EntityProfile] = []
+        self.metadata: dict = {}
+        self.vertical: str = ""
         self._step = 0
 
     def add_contradictions(self, items: list[Contradiction]) -> None:
@@ -47,12 +55,12 @@ class CaseFileBuilder:
                         id=f"finding_{len(self.findings)+1}",
                         severity="high" if p.status == "fail" else "medium",
                         title=f"Policy {p.rule_ref}",
-                        description=p.excerpt,
+                        description=policy_finding_description(p, self.contradictions),
                         citations=[
                             Citation(
                                 doc_id=p.source_policy_doc_id,
                                 page=None,
-                                span=p.excerpt[:200],
+                                span=(p.excerpt or "")[:200],
                             )
                         ],
                     )
@@ -136,28 +144,27 @@ class CaseFileBuilder:
             return RecommendedAction.APPROVE
         return RecommendedAction.REVIEW
 
-    def build(self, executive_summary: str) -> CaseFile:
+    def build(self, executive_summary: str = "") -> CaseFile:
         action = self.recommend_action()
-        if action == RecommendedAction.REVIEW and not self.open_questions:
-            self.open_questions = [
-                "Confirm employer and revenue documentation with primary sources",
-                "Validate business address is not a virtual office",
-            ]
-        if action == RecommendedAction.DECLINE and not self.open_questions:
-            self.open_questions = [
-                "Escalate to senior underwriter before final adverse action",
-                "Request borrower letter of explanation for material contradictions",
-            ]
-        # Dedupe open questions while preserving order
-        seen: set[str] = set()
-        deduped: list[str] = []
-        for q in self.open_questions:
-            if q not in seen:
-                seen.add(q)
-                deduped.append(q)
-        self.open_questions = deduped
+        self.findings = polish_findings(self.findings)
+        self.open_questions = build_open_questions(
+            contradictions=self.contradictions,
+            policy_findings=self.policy_findings,
+            existing=self.open_questions,
+            action=action,
+            metadata=self.metadata,
+        )
+        summary = synthesize_executive_summary(
+            vertical=self.vertical or "loan",
+            action=action,
+            findings=self.findings,
+            contradictions=self.contradictions,
+            policy_findings=self.policy_findings,
+            entity_profiles=self.entity_profiles,
+            llm_text=executive_summary,
+        )
         return CaseFile(
-            executive_summary=executive_summary,
+            executive_summary=summary,
             findings=self.findings,
             contradictions=self.contradictions,
             policy_findings=self.policy_findings,
