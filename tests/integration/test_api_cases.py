@@ -19,12 +19,14 @@ async def api_client(require_postgres, monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "heuristic")
     monkeypatch.setenv("OSINT_MODE", "fixture")
     from packages.config import get_settings
+    from packages.db.session import init_db
 
     get_settings.cache_clear()
+    await init_db()
 
     from apps.api.main import app
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app, lifespan="on")
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
