@@ -1,8 +1,7 @@
 """Memo polish: dedupe, ranking, entity cleanup, open questions."""
 
 from packages.agent.case_file import CaseFileBuilder
-from packages.agent.case_polish import synthesize_executive_summary
-from packages.agent.case_polish import polish_findings
+from packages.agent.case_polish import polish_findings, synthesize_executive_summary
 from packages.agent.entity_names import clean_org_name
 from packages.memo import build_memo_context, render_memo
 from packages.schemas.case import (
