@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 DOC_TYPE_KEYWORDS: dict[str, list[str]] = {
     "form_1919": ["form 1919", "borrower information form", "sba form 1919"],
     "form_4506c": ["4506-c", "4506c", "tax transcript", "irs request"],

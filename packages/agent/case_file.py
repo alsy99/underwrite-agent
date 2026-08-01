@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 from packages.agent.case_polish import (
     build_open_questions,
-    polish_findings,
     policy_finding_description,
+    polish_findings,
     synthesize_executive_summary,
 )
 from packages.schemas.case import (

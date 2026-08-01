@@ -5,8 +5,8 @@ import pytest
 from packages.agent.case_polish import (
     build_open_questions,
     dedupe_findings,
-    polish_findings,
     policy_finding_description,
+    polish_findings,
 )
 from packages.agent.entity_names import (
     clean_org_name,

@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import unicodedata
 
-
 _SUFFIX_RE = re.compile(
     r"\b(llc|l\.l\.c\.|inc|inc\.|corp|corp\.|ltd|ltd\.|co|co\.|lp|l\.p\.|pllc)\b",
     re.IGNORECASE,

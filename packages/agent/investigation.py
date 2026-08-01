@@ -26,7 +26,6 @@ from packages.osint.profile import ProfileAnalyzer
 from packages.policy_rag.service import PolicyRAGService
 from packages.schemas.case import CaseFile, EntityProfile, LoanVertical
 
-
 # Tools the agent may schedule after cross-check / policy RAG (not re-run those).
 INVESTIGATION_TOOLS = {
     "lookup_business_registry",
