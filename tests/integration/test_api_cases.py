@@ -26,7 +26,7 @@ async def api_client(require_postgres, monkeypatch):
 
     from apps.api.main import app
 
-    transport = ASGITransport(app=app, lifespan="on")
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
