@@ -11,7 +11,11 @@ Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 | **frontend** | `frontend` | `npm ci`, production build, Vitest, Playwright smoke |
 | **ci-success** | gate | Fails unless security + backend + frontend all succeed |
 
-Branch protection / ruleset requires **`ci-success`** (and ideally the three jobs) before merge.
+Branch protection / ruleset requires **`ci-success`** (and **security** / **backend** / **frontend**) before merge.
+
+Configured on this repo:
+- Ruleset: [Protect main](https://github.com/alsy99/underwrite-agent/rules/20180979) (`main` + `master`)
+- Classic branch protection on `main`: required checks + no force-push + enforce admins
 
 ## Local parity
 
