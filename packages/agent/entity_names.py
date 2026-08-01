@@ -19,8 +19,8 @@ _EMPLOYED_BY = re.compile(
     re.IGNORECASE,
 )
 _EMPLOYER_LABEL = re.compile(
-    rf"(?:stated\s+)?employer(?:\s*\([^)]*\))?\s*[:\-]\s*"
-    rf"([^\n\r]+)",
+    r"(?:stated\s+)?employer(?:\s*\([^)]*\))?\s*[:\-]\s*"
+    r"([^\n\r]+)",
     re.IGNORECASE,
 )
 _TRAILING_JUNK = re.compile(r"[\s,;:.\-]+$")

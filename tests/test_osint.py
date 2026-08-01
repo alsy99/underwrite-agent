@@ -170,7 +170,6 @@ def test_case_file_builder_osint_findings():
 @pytest.mark.asyncio
 async def test_tool_registry_osint_dispatch():
     from packages.agent.tools.registry import ToolRegistry
-    from packages.schemas.case import LoanVertical
 
     registry = ToolRegistry.__new__(ToolRegistry)
     registry.metadata = {

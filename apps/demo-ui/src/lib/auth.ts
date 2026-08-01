@@ -1,10 +1,15 @@
 const SESSION_KEY = "underwrite-agent-auth";
 
-const passwordHash = import.meta.env.VITE_UI_PASSWORD_HASH?.trim() || "";
-const passwordPlain = import.meta.env.VITE_UI_PASSWORD?.trim() || "";
+function passwordHash(): string {
+  return import.meta.env.VITE_UI_PASSWORD_HASH?.trim() || "";
+}
+
+function passwordPlain(): string {
+  return import.meta.env.VITE_UI_PASSWORD?.trim() || "";
+}
 
 export function isAuthRequired(): boolean {
-  return Boolean(passwordHash || passwordPlain);
+  return Boolean(passwordHash() || passwordPlain());
 }
 
 export function isAuthenticated(): boolean {
@@ -25,11 +30,13 @@ async function sha256Hex(value: string): Promise<string> {
 }
 
 export async function verifyPassword(password: string): Promise<boolean> {
-  if (passwordHash) {
-    return (await sha256Hex(password)) === passwordHash;
+  const hash = passwordHash();
+  if (hash) {
+    return (await sha256Hex(password)) === hash;
   }
-  if (passwordPlain) {
-    return password === passwordPlain;
+  const plain = passwordPlain();
+  if (plain) {
+    return password === plain;
   }
   return true;
 }

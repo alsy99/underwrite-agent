@@ -13,6 +13,8 @@ build/
 htmlcov/
 node_modules/
 apps/demo-ui/dist/
+apps/demo-ui/test-results/
+apps/demo-ui/playwright-report/
 .run/
 .cache/
 output/

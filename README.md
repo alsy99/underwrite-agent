@@ -49,6 +49,17 @@ python scripts/run_happy_flow.py
 
 Features: case list, new investigation upload, live case file + audit trail viewer.
 
+**Tests:** [docs/TESTING.md](docs/TESTING.md) · **CI / branch protection:** [docs/CI.md](docs/CI.md)
+
+```bash
+./scripts/setup_test_db.sh           # creates underwrite_test (isolated from app DB)
+./scripts/run_tests.sh unit          # backend + frontend unit
+./scripts/run_tests.sh backend       # includes integration/e2e on underwrite_test
+cd apps/demo-ui && npm test          # Vitest
+```
+
+PRs to `main` must pass GitHub Actions jobs: **security**, **backend**, **frontend** (gate: **ci-success**).
+
 ## Remote access (internet demo)
 
 The **UI** is hosted on GitHub Pages. The **API + worker** run on your Mac and are exposed with a tunnel.

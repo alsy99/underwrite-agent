@@ -1,7 +1,6 @@
 """OFAC SDN cache / parse unit tests (no network)."""
 
 import os
-from pathlib import Path
 
 import pytest
 

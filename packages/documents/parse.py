@@ -1,4 +1,3 @@
-from io import BytesIO
 
 
 def extract_text_from_bytes(filename: str, data: bytes) -> tuple[str, int]:

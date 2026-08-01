@@ -20,3 +20,11 @@ psql -d "${DB_NAME}" -v ON_ERROR_STOP=0 -c "CREATE EXTENSION IF NOT EXISTS vecto
 }
 
 echo "==> Done. DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
+
+# Also ensure isolated pytest DB exists
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -x "${SCRIPT_DIR}/setup_test_db.sh" ]; then
+  echo ""
+  echo "==> Also provisioning test database..."
+  DB_USER="$DB_USER" DB_PASS="$DB_PASS" "${SCRIPT_DIR}/setup_test_db.sh"
+fi
